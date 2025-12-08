@@ -209,13 +209,20 @@ html, body {
 
 #scale-selector {
     flex: 1;
+    min-width: 0;
     display: flex;
     gap: 4px;
-    overflow-x: scroll;
+    overflow-x: auto;
     overflow-y: hidden;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
     -ms-overflow-style: none;
+    touch-action: pan-x;
+}
+
+#scale-row {
+    overflow: hidden;
+    touch-action: pan-x;
 }
 
 #scale-selector::-webkit-scrollbar {
@@ -246,7 +253,9 @@ html, body {
     background: transparent;
     border-radius: 2px;
     outline: none;
-    touch-action: none;
+    touch-action: pan-x;
+    -webkit-user-select: auto;
+    user-select: auto;
 }
 
 .env-slider::-webkit-slider-runnable-track {

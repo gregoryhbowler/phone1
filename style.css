@@ -216,7 +216,6 @@ html, body {
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
     -ms-overflow-style: none;
-    touch-action: pan-x;
 }
 
 #scale-selector::-webkit-scrollbar {
@@ -241,39 +240,61 @@ html, body {
 
 .env-slider {
     flex: 1;
-    height: 4px;
+    height: 24px;
     -webkit-appearance: none;
     appearance: none;
-    background: #2a2a2a;
+    background: transparent;
     border-radius: 2px;
     outline: none;
+    touch-action: none;
+}
+
+.env-slider::-webkit-slider-runnable-track {
+    height: 4px;
+    background: #2a2a2a;
+    border-radius: 2px;
 }
 
 .env-slider::-webkit-slider-thumb {
     -webkit-appearance: none;
     appearance: none;
-    width: 16px;
-    height: 16px;
+    width: 20px;
+    height: 20px;
     background: #4a4a4a;
     border-radius: 50%;
     cursor: pointer;
+    margin-top: -8px;
 }
 
 .env-slider::-moz-range-thumb {
-    width: 16px;
-    height: 16px;
+    width: 20px;
+    height: 20px;
     background: #4a4a4a;
     border-radius: 50%;
     cursor: pointer;
     border: none;
 }
 
+.env-slider::-moz-range-track {
+    height: 4px;
+    background: #2a2a2a;
+    border-radius: 2px;
+}
+
 #env-row.active .env-label {
     color: #aa8;
 }
 
+#env-row.active .env-slider::-webkit-slider-runnable-track {
+    background: #3a3a2a;
+}
+
 #env-row.active .env-slider::-webkit-slider-thumb {
     background: #8a8a5a;
+}
+
+#env-row.active .env-slider::-moz-range-track {
+    background: #3a3a2a;
 }
 
 #env-row.active .env-slider::-moz-range-thumb {

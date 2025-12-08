@@ -1535,21 +1535,69 @@ class PatchUnknown {
         return rootRatio * scaleRatio * octaveRatio;
     }
 
+    // AD Envelope settings
+    // When enabled, notes have attack-decay shape instead of drone/hold
+    setEnvelopeEnabled(enabled) {
+        this.envelopeEnabled = enabled;
+    }
+
+    setEnvelopeAttack(attack) {
+        this.envelopeAttack = Math.max(0.001, Math.min(2, attack));
+    }
+
+    setEnvelopeDecay(decay) {
+        this.envelopeDecay = Math.max(0.01, Math.min(5, decay));
+    }
+
     // Play a key - sends pitch CV to all oscillators
     playKey(keyIndex, scale, rootSemitones = 0, glideTime = 0.05) {
         const ratio = this.getKeyPitchRatio(keyIndex, scale, rootSemitones);
         this.setPitchCV(ratio, glideTime);
 
-        // Slight gain boost on key press for articulation
-        this.cells.forEach(cell => {
-            if (cell && cell.params && cell.params.gain) {
-                const currentGain = cell.params.gain.value;
-                // Quick attack
-                cell.params.gain.setTargetAtTime(currentGain * 1.15, this.ctx.currentTime, 0.01);
-                // Return to normal
-                cell.params.gain.setTargetAtTime(currentGain, this.ctx.currentTime + 0.05, 0.1);
-            }
-        });
+        // Store base gains if not already stored (for envelope recovery)
+        if (!this.baseGains) {
+            this.baseGains = new Map();
+            this.cells.forEach((cell, index) => {
+                if (cell && cell.params && cell.params.gain) {
+                    this.baseGains.set(index, cell.params.gain.value);
+                }
+            });
+        }
+
+        if (this.envelopeEnabled) {
+            // AD envelope mode - attack then decay
+            const attack = this.envelopeAttack || 0.01;
+            const decay = this.envelopeDecay || 0.5;
+
+            this.cells.forEach((cell, index) => {
+                if (cell && cell.params && cell.params.gain) {
+                    const baseGain = this.baseGains.get(index) || cell.params.gain.value;
+
+                    // Cancel any scheduled changes
+                    cell.params.gain.cancelScheduledValues(this.ctx.currentTime);
+
+                    // Start from near zero
+                    cell.params.gain.setValueAtTime(0.001, this.ctx.currentTime);
+
+                    // Attack to peak (slightly boosted)
+                    cell.params.gain.setTargetAtTime(baseGain * 1.2, this.ctx.currentTime, attack);
+
+                    // Decay back to near silence
+                    cell.params.gain.setTargetAtTime(0.001, this.ctx.currentTime + attack * 3, decay);
+                }
+            });
+        } else {
+            // Drone mode - slight articulation boost only
+            this.cells.forEach(cell => {
+                if (cell && cell.params && cell.params.gain) {
+                    const currentGain = cell.params.gain.value;
+                    // Quick attack
+                    cell.params.gain.setTargetAtTime(currentGain * 1.15, this.ctx.currentTime, 0.01);
+                    // Return to normal
+                    cell.params.gain.setTargetAtTime(currentGain, this.ctx.currentTime + 0.05, 0.1);
+                }
+            });
+        }
     }
 
     // Release key - optionally return to base pitch or hold
@@ -1558,7 +1606,19 @@ class PatchUnknown {
             // Return all oscillators to their base frequencies
             this.setPitchCV(1, 0.2);
         }
-        // If holdPitch is true, the pitch stays where it is until next key press
+
+        // If envelope is enabled and we're exiting play mode, restore base gains
+        if (!holdPitch && this.baseGains) {
+            this.cells.forEach((cell, index) => {
+                if (cell && cell.params && cell.params.gain) {
+                    const baseGain = this.baseGains.get(index);
+                    if (baseGain !== undefined) {
+                        cell.params.gain.cancelScheduledValues(this.ctx.currentTime);
+                        cell.params.gain.setTargetAtTime(baseGain, this.ctx.currentTime, 0.3);
+                    }
+                }
+            });
+        }
     }
 
     // Quantize all oscillators to current scale/root (for when scale changes)

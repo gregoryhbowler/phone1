@@ -14,6 +14,7 @@ let selectedRoot = 0; // 0 = C, 1 = C#, etc.
 let selectedScale = 'harmonic';
 let macroAssignments = [];
 let activeNotes = new Map(); // frequency -> oscillator for polyphonic playing
+let envelopeEnabled = false; // AD envelope toggle
 
 // Cryptic cell assignments - these indices determine behavior
 // but the user should never understand the mapping
@@ -483,6 +484,29 @@ function createScaleSelector() {
         });
         scaleSelector.appendChild(btn);
     });
+
+    // Envelope toggle button
+    const envToggle = document.getElementById('env-toggle');
+    if (envToggle) {
+        envToggle.addEventListener('click', toggleEnvelope);
+        envToggle.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            toggleEnvelope();
+        });
+    }
+}
+
+// Toggle AD envelope mode
+function toggleEnvelope() {
+    envelopeEnabled = !envelopeEnabled;
+    synth.setEnvelopeEnabled(envelopeEnabled);
+
+    const envToggle = document.getElementById('env-toggle');
+    if (envToggle) {
+        envToggle.classList.toggle('active', envelopeEnabled);
+        // ◇ = drone/hold mode, ◆ = envelope mode
+        envToggle.textContent = envelopeEnabled ? '◆' : '◇';
+    }
 }
 
 function selectRoot(index) {

@@ -1341,44 +1341,123 @@ class PatchUnknown {
         }
     }
 
-    // ============== RECORDING ==============
+    // ============== RECORDING (WAV) ==============
 
     startRecording() {
-        if (this.mediaRecorder && this.mediaRecorder.state === 'recording') return;
+        if (this.isRecording) return;
+        this.isRecording = true;
 
-        // Create a destination for recording
-        const dest = this.ctx.createMediaStreamDestination();
-        this.limiter.connect(dest);
+        // Use ScriptProcessorNode to capture raw samples (deprecated but widely supported)
+        // Buffer size of 4096 for balance between latency and performance
+        this.recordingBufferSize = 4096;
+        this.recordedSamples = [[], []]; // Stereo: left, right
 
-        this.recordedChunks = [];
-        this.mediaRecorder = new MediaRecorder(dest.stream, {
-            mimeType: 'audio/webm;codecs=opus'
-        });
+        // Create a script processor to capture audio
+        this.recordingProcessor = this.ctx.createScriptProcessor(this.recordingBufferSize, 2, 2);
 
-        this.mediaRecorder.ondataavailable = (e) => {
-            if (e.data.size > 0) {
-                this.recordedChunks.push(e.data);
-            }
+        this.recordingProcessor.onaudioprocess = (e) => {
+            if (!this.isRecording) return;
+
+            const left = e.inputBuffer.getChannelData(0);
+            const right = e.inputBuffer.getChannelData(1);
+
+            // Copy samples (input buffers are reused)
+            this.recordedSamples[0].push(new Float32Array(left));
+            this.recordedSamples[1].push(new Float32Array(right));
         };
 
-        this.mediaRecorder.onstop = () => {
-            const blob = new Blob(this.recordedChunks, { type: 'audio/webm' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `patch-unknown-${Date.now()}.webm`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-        };
-
-        this.mediaRecorder.start();
+        // Connect: limiter -> processor -> destination (processor needs output to work)
+        this.limiter.connect(this.recordingProcessor);
+        this.recordingProcessor.connect(this.ctx.destination);
     }
 
     stopRecording() {
-        if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
-            this.mediaRecorder.stop();
+        if (!this.isRecording) return;
+        this.isRecording = false;
+
+        // Disconnect recording processor
+        if (this.recordingProcessor) {
+            this.limiter.disconnect(this.recordingProcessor);
+            this.recordingProcessor.disconnect();
+            this.recordingProcessor = null;
+        }
+
+        // Flatten samples
+        const leftSamples = this.flattenSamples(this.recordedSamples[0]);
+        const rightSamples = this.flattenSamples(this.recordedSamples[1]);
+
+        // Encode as WAV
+        const wavBlob = this.encodeWAV(leftSamples, rightSamples, this.ctx.sampleRate);
+
+        // Download
+        const url = URL.createObjectURL(wavBlob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `patch-unknown-${Date.now()}.wav`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        // Clear buffer
+        this.recordedSamples = null;
+    }
+
+    flattenSamples(chunks) {
+        const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+        const result = new Float32Array(totalLength);
+        let offset = 0;
+        for (const chunk of chunks) {
+            result.set(chunk, offset);
+            offset += chunk.length;
+        }
+        return result;
+    }
+
+    encodeWAV(leftSamples, rightSamples, sampleRate) {
+        const numChannels = 2;
+        const bitsPerSample = 16;
+        const bytesPerSample = bitsPerSample / 8;
+        const numSamples = leftSamples.length;
+        const dataSize = numSamples * numChannels * bytesPerSample;
+        const buffer = new ArrayBuffer(44 + dataSize);
+        const view = new DataView(buffer);
+
+        // WAV header
+        this.writeString(view, 0, 'RIFF');
+        view.setUint32(4, 36 + dataSize, true);
+        this.writeString(view, 8, 'WAVE');
+        this.writeString(view, 12, 'fmt ');
+        view.setUint32(16, 16, true); // fmt chunk size
+        view.setUint16(20, 1, true); // PCM format
+        view.setUint16(22, numChannels, true);
+        view.setUint32(24, sampleRate, true);
+        view.setUint32(28, sampleRate * numChannels * bytesPerSample, true); // byte rate
+        view.setUint16(32, numChannels * bytesPerSample, true); // block align
+        view.setUint16(34, bitsPerSample, true);
+        this.writeString(view, 36, 'data');
+        view.setUint32(40, dataSize, true);
+
+        // Interleave and write samples
+        let offset = 44;
+        for (let i = 0; i < numSamples; i++) {
+            // Left channel
+            const leftSample = Math.max(-1, Math.min(1, leftSamples[i]));
+            view.setInt16(offset, leftSample < 0 ? leftSample * 0x8000 : leftSample * 0x7FFF, true);
+            offset += 2;
+
+            // Right channel
+            const rightSample = Math.max(-1, Math.min(1, rightSamples[i]));
+            view.setInt16(offset, rightSample < 0 ? rightSample * 0x8000 : rightSample * 0x7FFF, true);
+            offset += 2;
+        }
+
+        return new Blob([buffer], { type: 'audio/wav' });
+    }
+
+    writeString(view, offset, string) {
+        for (let i = 0; i < string.length; i++) {
+            view.setUint8(offset + i, string.charCodeAt(i));
         }
     }
 

@@ -112,6 +112,11 @@ class PatchUnknown {
         this.masterGain = this.ctx.createGain();
         this.masterGain.gain.value = 0.6;
 
+        // Envelope VCA - sits after master for keyboard envelope shaping
+        // This allows the envelope to shape ALL audio output
+        this.envelopeVCA = this.ctx.createGain();
+        this.envelopeVCA.gain.value = 1.0; // Unity gain when envelope disabled
+
         // Limiter to prevent clipping
         this.limiter = this.ctx.createDynamicsCompressor();
         this.limiter.threshold.value = -6;
@@ -126,11 +131,14 @@ class PatchUnknown {
         // Subtle saturation for warmth
         this.saturation = this.createSaturation();
 
-        this.masterGain.connect(this.saturation);
+        // Signal path: masterGain -> envelopeVCA -> saturation -> analyser -> limiter -> destination
+        this.masterGain.connect(this.envelopeVCA);
+        this.envelopeVCA.connect(this.saturation);
         this.saturation.connect(this.analyser);
         this.analyser.connect(this.limiter);
         this.limiter.connect(this.ctx.destination);
 
+        // Reverb send (from before envelope VCA, so reverb tail sustains after note)
         const reverbSend = this.ctx.createGain();
         reverbSend.gain.value = 0.25;
         this.masterGain.connect(reverbSend);
@@ -1539,6 +1547,11 @@ class PatchUnknown {
     // When enabled, notes have attack-decay shape instead of drone/hold
     setEnvelopeEnabled(enabled) {
         this.envelopeEnabled = enabled;
+        // When disabling envelope, restore VCA to unity gain
+        if (!enabled && this.envelopeVCA) {
+            this.envelopeVCA.gain.cancelScheduledValues(this.ctx.currentTime);
+            this.envelopeVCA.gain.setTargetAtTime(1.0, this.ctx.currentTime, 0.1);
+        }
     }
 
     setEnvelopeAttack(attack) {
@@ -1554,53 +1567,34 @@ class PatchUnknown {
         const ratio = this.getKeyPitchRatio(keyIndex, scale, rootSemitones);
         this.setPitchCV(ratio, glideTime);
 
-        // Store base gains if not already stored (for envelope recovery)
-        if (!this.baseGains) {
-            this.baseGains = new Map();
-            this.cells.forEach((cell, index) => {
-                if (cell && cell.params && cell.params.gain) {
-                    this.baseGains.set(index, cell.params.gain.value);
-                }
-            });
-        }
-
-        if (this.envelopeEnabled) {
-            // AD envelope mode - attack then decay
+        if (this.envelopeEnabled && this.envelopeVCA) {
+            // AD envelope mode - shape the master VCA
             const attack = this.envelopeAttack || 0.01;
             const decay = this.envelopeDecay || 0.5;
             const now = this.ctx.currentTime;
+            const vca = this.envelopeVCA.gain;
 
-            this.cells.forEach((cell, index) => {
-                if (cell && cell.params && cell.params.gain) {
-                    const baseGain = this.baseGains.get(index);
-                    if (baseGain === undefined || baseGain < 0.001) return;
+            // Cancel any scheduled changes
+            vca.cancelScheduledValues(now);
 
-                    const gainParam = cell.params.gain;
+            // Start from silence
+            vca.setValueAtTime(0, now);
 
-                    // Cancel any scheduled changes
-                    gainParam.cancelScheduledValues(now);
+            // Attack: ramp up to full
+            vca.linearRampToValueAtTime(1.0, now + attack);
 
-                    // Start from silence
-                    gainParam.setValueAtTime(0, now);
-
-                    // Attack: ramp up to peak
-                    gainParam.linearRampToValueAtTime(baseGain * 1.5, now + attack);
-
-                    // Decay: ramp down to near silence
-                    gainParam.linearRampToValueAtTime(0.001, now + attack + decay);
-                }
-            });
+            // Decay: ramp down to silence
+            vca.linearRampToValueAtTime(0, now + attack + decay);
         } else {
-            // Drone mode - slight articulation boost only
-            this.cells.forEach(cell => {
-                if (cell && cell.params && cell.params.gain) {
-                    const currentGain = cell.params.gain.value;
-                    // Quick attack
-                    cell.params.gain.setTargetAtTime(currentGain * 1.15, this.ctx.currentTime, 0.01);
-                    // Return to normal
-                    cell.params.gain.setTargetAtTime(currentGain, this.ctx.currentTime + 0.05, 0.1);
-                }
-            });
+            // Drone mode - ensure VCA is open, slight articulation via master
+            if (this.envelopeVCA) {
+                this.envelopeVCA.gain.cancelScheduledValues(this.ctx.currentTime);
+                this.envelopeVCA.gain.setTargetAtTime(1.0, this.ctx.currentTime, 0.01);
+            }
+            // Slight articulation boost on master
+            const currentGain = this.masterGain.gain.value;
+            this.masterGain.gain.setTargetAtTime(currentGain * 1.1, this.ctx.currentTime, 0.01);
+            this.masterGain.gain.setTargetAtTime(currentGain, this.ctx.currentTime + 0.05, 0.1);
         }
     }
 
@@ -1611,17 +1605,10 @@ class PatchUnknown {
             this.setPitchCV(1, 0.2);
         }
 
-        // If envelope is enabled and we're exiting play mode, restore base gains
-        if (!holdPitch && this.baseGains) {
-            this.cells.forEach((cell, index) => {
-                if (cell && cell.params && cell.params.gain) {
-                    const baseGain = this.baseGains.get(index);
-                    if (baseGain !== undefined) {
-                        cell.params.gain.cancelScheduledValues(this.ctx.currentTime);
-                        cell.params.gain.setTargetAtTime(baseGain, this.ctx.currentTime, 0.3);
-                    }
-                }
-            });
+        // When exiting play mode, restore VCA to unity
+        if (!holdPitch && this.envelopeVCA) {
+            this.envelopeVCA.gain.cancelScheduledValues(this.ctx.currentTime);
+            this.envelopeVCA.gain.setTargetAtTime(1.0, this.ctx.currentTime, 0.3);
         }
     }
 

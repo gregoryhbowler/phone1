@@ -6,7 +6,7 @@ let grid = null;
 let cellElements = [];
 
 // Mode state
-let currentMode = 'patch'; // 'patch' or 'play'
+let currentMode = 'patch'; // 'patch', 'play', or 'seq'
 let isRecording = false;
 
 // Play mode state
@@ -15,6 +15,16 @@ let selectedScale = 'harmonic';
 let macroAssignments = [];
 let activeNotes = new Map(); // frequency -> oscillator for polyphonic playing
 let envelopeEnabled = false; // AD envelope toggle
+
+// Sequencer state
+let seqLength = 8; // 2-16 steps
+let seqSteps = new Array(16).fill(false); // step on/off
+let seqNotes = new Array(16).fill(16); // note index (0-31 for 4 octaves of scale degrees)
+let seqTempo = 120; // BPM
+let seqTranspose = 0; // scale degrees (-12 to +12)
+let seqPlaying = false;
+let seqCurrentStep = 0;
+let seqIntervalId = null;
 
 // Cryptic cell assignments - these indices determine behavior
 // but the user should never understand the mapping
@@ -48,7 +58,10 @@ async function init() {
         if (target.closest('#scale-selector') ||
             target.closest('#scale-row') ||
             target.closest('.env-slider') ||
-            target.classList.contains('env-slider')) {
+            target.classList.contains('env-slider') ||
+            target.closest('#seq-controls') ||
+            target.closest('.seq-slider') ||
+            target.closest('#seq-grid')) {
             return; // Allow native scroll/drag
         }
         e.preventDefault();
@@ -59,6 +72,7 @@ async function init() {
 function setupHeader() {
     const modeToggle = document.getElementById('mode-toggle');
     const recordBtn = document.getElementById('record-btn');
+    const seqToggle = document.getElementById('seq-toggle');
 
     modeToggle.addEventListener('click', toggleMode);
     modeToggle.addEventListener('touchstart', (e) => {
@@ -71,19 +85,32 @@ function setupHeader() {
         e.preventDefault();
         toggleRecording();
     });
+
+    seqToggle.addEventListener('click', toggleSeqMode);
+    seqToggle.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        toggleSeqMode();
+    });
 }
 
 // Toggle between patch and play modes
 function toggleMode() {
     const modeToggle = document.getElementById('mode-toggle');
+    const seqToggle = document.getElementById('seq-toggle');
     const patchMode = document.getElementById('patch-mode');
     const playMode = document.getElementById('play-mode');
+    const seqMode = document.getElementById('seq-mode');
 
-    if (currentMode === 'patch') {
+    // Stop sequencer if running
+    stopSequencer();
+
+    if (currentMode === 'patch' || currentMode === 'seq') {
         currentMode = 'play';
         modeToggle.textContent = '♩';
         modeToggle.classList.add('play-mode');
+        seqToggle.classList.remove('active');
         patchMode.classList.add('hidden');
+        seqMode.classList.add('hidden');
         playMode.classList.remove('hidden');
 
         // Store base frequencies for V/Oct control
@@ -102,9 +129,47 @@ function toggleMode() {
         modeToggle.classList.remove('play-mode');
         patchMode.classList.remove('hidden');
         playMode.classList.add('hidden');
+        seqMode.classList.add('hidden');
         // Release pitch CV (return to base)
         synth.releaseKey(false);
         activeNotes.clear();
+    }
+}
+
+// Toggle sequencer mode
+function toggleSeqMode() {
+    const modeToggle = document.getElementById('mode-toggle');
+    const seqToggle = document.getElementById('seq-toggle');
+    const patchMode = document.getElementById('patch-mode');
+    const playMode = document.getElementById('play-mode');
+    const seqMode = document.getElementById('seq-mode');
+
+    if (currentMode === 'seq') {
+        // Return to patch mode
+        stopSequencer();
+        currentMode = 'patch';
+        modeToggle.textContent = '▦';
+        modeToggle.classList.remove('play-mode');
+        seqToggle.classList.remove('active');
+        patchMode.classList.remove('hidden');
+        playMode.classList.add('hidden');
+        seqMode.classList.add('hidden');
+        synth.releaseKey(false);
+    } else {
+        // Enter sequencer mode
+        currentMode = 'seq';
+        modeToggle.textContent = '▦';
+        modeToggle.classList.remove('play-mode');
+        seqToggle.classList.add('active');
+        patchMode.classList.add('hidden');
+        playMode.classList.add('hidden');
+        seqMode.classList.remove('hidden');
+
+        // Store base frequencies for V/Oct control
+        synth.storeBaseFrequencies();
+
+        // Initialize sequencer UI
+        createSequencerUI();
     }
 }
 
@@ -672,6 +737,275 @@ function releaseAllNotes() {
     activeNotes.clear();
     // Return oscillators to base pitch
     synth.releaseKey(false);
+}
+
+// ============== STEP SEQUENCER ==============
+
+// Create the sequencer UI
+function createSequencerUI() {
+    createSeqLengthSelector();
+    createSeqGrid();
+    setupSeqControls();
+}
+
+// Create length selector (2-16 steps)
+function createSeqLengthSelector() {
+    const selector = document.getElementById('seq-length-selector');
+    selector.innerHTML = '';
+
+    for (let len = 2; len <= 16; len++) {
+        const btn = document.createElement('button');
+        btn.className = 'seq-len-btn' + (len === seqLength ? ' active' : '');
+        btn.textContent = len;
+        btn.addEventListener('click', () => setSeqLength(len));
+        selector.appendChild(btn);
+    }
+}
+
+// Set sequence length
+function setSeqLength(len) {
+    seqLength = len;
+    const buttons = document.querySelectorAll('.seq-len-btn');
+    buttons.forEach((btn, i) => {
+        btn.classList.toggle('active', i + 2 === len);
+    });
+    updateSeqGridVisibility();
+}
+
+// Create the step knobs and buttons
+function createSeqGrid() {
+    const knobsContainer = document.getElementById('seq-knobs');
+    const stepsContainer = document.getElementById('seq-steps');
+    knobsContainer.innerHTML = '';
+    stepsContainer.innerHTML = '';
+
+    const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+    const scale = synth.scales[selectedScale] || synth.scales.harmonic;
+
+    for (let i = 0; i < 16; i++) {
+        // Create knob column
+        const knob = document.createElement('div');
+        knob.className = 'seq-knob' + (seqSteps[i] ? ' active' : '');
+        knob.dataset.step = i;
+        if (i >= seqLength) knob.style.display = 'none';
+
+        const knobVisual = document.createElement('div');
+        knobVisual.className = 'seq-knob-visual';
+
+        const indicator = document.createElement('div');
+        indicator.className = 'seq-knob-indicator';
+        knobVisual.appendChild(indicator);
+
+        const noteLabel = document.createElement('div');
+        noteLabel.className = 'seq-knob-note';
+        noteLabel.textContent = getSeqNoteName(seqNotes[i], scale, noteNames);
+
+        knob.appendChild(knobVisual);
+        knob.appendChild(noteLabel);
+
+        // Touch/drag handling for note knob
+        let startY = 0;
+        let startValue = 0;
+
+        const handleKnobStart = (e) => {
+            e.preventDefault();
+            const touch = e.touches ? e.touches[0] : e;
+            startY = touch.clientY;
+            startValue = seqNotes[i];
+            knob.classList.add('dragging');
+        };
+
+        const handleKnobMove = (e) => {
+            if (!knob.classList.contains('dragging')) return;
+            e.preventDefault();
+            const touch = e.touches ? e.touches[0] : e;
+            const deltaY = startY - touch.clientY;
+            // 4 octaves * scale length = total notes
+            const maxNote = scale.length * 4 - 1;
+            const newValue = Math.max(0, Math.min(maxNote, Math.round(startValue + deltaY / 8)));
+            seqNotes[i] = newValue;
+            updateSeqKnobVisual(knob, newValue, scale, noteNames);
+        };
+
+        const handleKnobEnd = () => {
+            knob.classList.remove('dragging');
+        };
+
+        knob.addEventListener('touchstart', handleKnobStart, { passive: false });
+        knob.addEventListener('touchmove', handleKnobMove, { passive: false });
+        knob.addEventListener('touchend', handleKnobEnd);
+        knob.addEventListener('mousedown', handleKnobStart);
+        document.addEventListener('mousemove', handleKnobMove);
+        document.addEventListener('mouseup', handleKnobEnd);
+
+        knobsContainer.appendChild(knob);
+
+        // Create step button
+        const stepBtn = document.createElement('button');
+        stepBtn.className = 'seq-step-btn' + (seqSteps[i] ? ' active' : '');
+        stepBtn.dataset.step = i;
+        stepBtn.textContent = i + 1;
+        if (i >= seqLength) stepBtn.style.display = 'none';
+
+        stepBtn.addEventListener('click', () => toggleSeqStep(i));
+
+        stepsContainer.appendChild(stepBtn);
+
+        // Update knob visual
+        updateSeqKnobVisual(knob, seqNotes[i], scale, noteNames);
+    }
+}
+
+// Get note name for sequencer display
+function getSeqNoteName(noteIndex, scale, noteNames) {
+    const scaleLen = scale.length;
+    const scaleIdx = noteIndex % scaleLen;
+    const octave = Math.floor(noteIndex / scaleLen) + 1;
+
+    const ratio = scale[scaleIdx];
+    const cents = 1200 * Math.log2(ratio);
+    const semitones = Math.round(cents / 100);
+    const noteIdx = (selectedRoot + semitones) % 12;
+
+    return noteNames[noteIdx] + octave;
+}
+
+// Update knob visual rotation and label
+function updateSeqKnobVisual(knob, value, scale, noteNames) {
+    const indicator = knob.querySelector('.seq-knob-indicator');
+    const noteLabel = knob.querySelector('.seq-knob-note');
+    const maxNote = scale.length * 4 - 1;
+
+    // Map note to rotation (-135 to +135 degrees)
+    const rotation = -135 + (value / maxNote) * 270;
+    indicator.style.transform = `translateX(-50%) rotate(${rotation}deg)`;
+
+    noteLabel.textContent = getSeqNoteName(value, scale, noteNames);
+}
+
+// Toggle step on/off
+function toggleSeqStep(index) {
+    seqSteps[index] = !seqSteps[index];
+    const stepBtn = document.querySelector(`.seq-step-btn[data-step="${index}"]`);
+    const knob = document.querySelector(`.seq-knob[data-step="${index}"]`);
+
+    if (stepBtn) stepBtn.classList.toggle('active', seqSteps[index]);
+    if (knob) knob.classList.toggle('active', seqSteps[index]);
+}
+
+// Update grid visibility based on length
+function updateSeqGridVisibility() {
+    const knobs = document.querySelectorAll('.seq-knob');
+    const steps = document.querySelectorAll('.seq-step-btn');
+
+    knobs.forEach((knob, i) => {
+        knob.style.display = i < seqLength ? '' : 'none';
+    });
+
+    steps.forEach((step, i) => {
+        step.style.display = i < seqLength ? '' : 'none';
+    });
+}
+
+// Setup transport and parameter controls
+function setupSeqControls() {
+    const playBtn = document.getElementById('seq-play');
+    const stopBtn = document.getElementById('seq-stop');
+    const tempoSlider = document.getElementById('seq-tempo');
+    const tempoValue = document.getElementById('seq-tempo-value');
+    const transposeSlider = document.getElementById('seq-transpose');
+    const transposeValue = document.getElementById('seq-transpose-value');
+
+    playBtn.addEventListener('click', startSequencer);
+    stopBtn.addEventListener('click', stopSequencer);
+
+    tempoSlider.value = seqTempo;
+    tempoValue.textContent = seqTempo;
+    tempoSlider.addEventListener('input', (e) => {
+        seqTempo = parseInt(e.target.value);
+        tempoValue.textContent = seqTempo;
+        if (seqPlaying) {
+            // Restart with new tempo
+            stopSequencer();
+            startSequencer();
+        }
+    });
+
+    transposeSlider.value = seqTranspose;
+    transposeValue.textContent = seqTranspose > 0 ? '+' + seqTranspose : seqTranspose;
+    transposeSlider.addEventListener('input', (e) => {
+        seqTranspose = parseInt(e.target.value);
+        transposeValue.textContent = seqTranspose > 0 ? '+' + seqTranspose : seqTranspose;
+    });
+}
+
+// Start the sequencer
+function startSequencer() {
+    if (seqPlaying) return;
+    seqPlaying = true;
+    seqCurrentStep = 0;
+
+    const playBtn = document.getElementById('seq-play');
+    playBtn.classList.add('playing');
+
+    // Calculate interval from BPM (ms per step)
+    const msPerBeat = 60000 / seqTempo;
+
+    // Play first step immediately
+    playSeqStep();
+
+    // Schedule subsequent steps
+    seqIntervalId = setInterval(() => {
+        seqCurrentStep = (seqCurrentStep + 1) % seqLength;
+        playSeqStep();
+    }, msPerBeat);
+}
+
+// Stop the sequencer
+function stopSequencer() {
+    if (!seqPlaying) return;
+    seqPlaying = false;
+
+    if (seqIntervalId) {
+        clearInterval(seqIntervalId);
+        seqIntervalId = null;
+    }
+
+    const playBtn = document.getElementById('seq-play');
+    if (playBtn) playBtn.classList.remove('playing');
+
+    // Clear current step highlight
+    const steps = document.querySelectorAll('.seq-step-btn');
+    steps.forEach(step => step.classList.remove('current'));
+
+    // Restore VCA if envelope mode
+    if (envelopeEnabled && synth.envelopeVCA) {
+        synth.envelopeVCA.gain.cancelScheduledValues(synth.ctx.currentTime);
+        synth.envelopeVCA.gain.setTargetAtTime(1.0, synth.ctx.currentTime, 0.1);
+    }
+}
+
+// Play current sequencer step
+function playSeqStep() {
+    // Update visual
+    const steps = document.querySelectorAll('.seq-step-btn');
+    steps.forEach((step, i) => {
+        step.classList.toggle('current', i === seqCurrentStep);
+    });
+
+    // Check if step is active
+    if (!seqSteps[seqCurrentStep]) return;
+
+    // Get note index with transpose (by scale degrees)
+    const scale = synth.scales[selectedScale] || synth.scales.harmonic;
+    let noteIndex = seqNotes[seqCurrentStep] + seqTranspose;
+
+    // Clamp to valid range (0 to 4 octaves of scale)
+    const maxNote = scale.length * 4 - 1;
+    noteIndex = Math.max(0, Math.min(maxNote, noteIndex));
+
+    // Play the note using the V/Oct system
+    synth.playKey(noteIndex, scale, selectedRoot, 0.01);
 }
 
 // Initialize when DOM is ready

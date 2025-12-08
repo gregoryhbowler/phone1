@@ -14,12 +14,36 @@
 <body>
     <div id="app">
         <header id="header">
-            <div class="header-left"></div>
+            <button id="seq-toggle" class="header-btn" aria-label="Step sequencer">▤</button>
             <button id="mode-toggle" class="header-btn" aria-label="Toggle play mode">▦</button>
             <button id="record-btn" class="header-btn" aria-label="Record">○</button>
         </header>
         <div id="patch-mode">
             <div id="grid"></div>
+        </div>
+        <div id="seq-mode" class="hidden">
+            <div id="seq-controls">
+                <div id="seq-length-row">
+                    <span class="seq-label">LEN</span>
+                    <div id="seq-length-selector"></div>
+                </div>
+                <div id="seq-param-row">
+                    <span class="seq-label">BPM</span>
+                    <input type="range" id="seq-tempo" class="seq-slider" min="20" max="240" value="120">
+                    <span id="seq-tempo-value" class="seq-value">120</span>
+                    <span class="seq-label">TRN</span>
+                    <input type="range" id="seq-transpose" class="seq-slider" min="-12" max="12" value="0">
+                    <span id="seq-transpose-value" class="seq-value">0</span>
+                </div>
+            </div>
+            <div id="seq-grid">
+                <div id="seq-knobs"></div>
+                <div id="seq-steps"></div>
+            </div>
+            <div id="seq-transport">
+                <button id="seq-play" class="seq-btn">▶</button>
+                <button id="seq-stop" class="seq-btn">■</button>
+            </div>
         </div>
         <div id="play-mode" class="hidden">
             <div id="macro-grid"></div>

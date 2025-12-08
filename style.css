@@ -92,6 +92,293 @@ html, body {
     display: none;
 }
 
+/* Sequencer mode container */
+#seq-mode {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    background: #0a0a0a;
+    padding: 4px;
+}
+
+#seq-mode.hidden {
+    display: none;
+}
+
+#seq-toggle.active {
+    color: #5a8a5a;
+    border-color: #3a5a3a;
+}
+
+/* Sequencer controls row */
+#seq-controls {
+    flex-shrink: 0;
+    background: #0c0c0c;
+    border: 1px solid #1a1a1a;
+    border-radius: 4px;
+    margin-bottom: 4px;
+}
+
+#seq-length-row {
+    display: flex;
+    align-items: center;
+    padding: 4px 8px;
+    gap: 4px;
+    border-bottom: 1px solid #151515;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-x;
+}
+
+#seq-length-selector {
+    display: flex;
+    gap: 2px;
+    flex: 1;
+}
+
+.seq-len-btn {
+    width: 24px;
+    height: 24px;
+    background: #1a1a1a;
+    border: 1px solid #2a2a2a;
+    border-radius: 3px;
+    color: #555;
+    font-family: 'Courier New', monospace;
+    font-size: 9px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.seq-len-btn.active {
+    background: #2a3a2a;
+    border-color: #4a5a4a;
+    color: #8a8;
+}
+
+#seq-param-row {
+    display: flex;
+    align-items: center;
+    padding: 4px 8px;
+    gap: 8px;
+}
+
+.seq-label {
+    font-size: 8px;
+    color: #555;
+    font-family: 'Courier New', monospace;
+    text-transform: uppercase;
+    flex-shrink: 0;
+}
+
+.seq-slider {
+    flex: 1;
+    height: 24px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: transparent;
+    outline: none;
+    touch-action: pan-x;
+    min-width: 60px;
+}
+
+.seq-slider::-webkit-slider-runnable-track {
+    height: 4px;
+    background: #2a2a2a;
+    border-radius: 2px;
+}
+
+.seq-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    background: #4a5a4a;
+    border-radius: 50%;
+    cursor: pointer;
+    margin-top: -6px;
+}
+
+.seq-slider::-moz-range-track {
+    height: 4px;
+    background: #2a2a2a;
+    border-radius: 2px;
+}
+
+.seq-slider::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    background: #4a5a4a;
+    border-radius: 50%;
+    cursor: pointer;
+    border: none;
+}
+
+.seq-value {
+    font-size: 10px;
+    color: #6a8a6a;
+    font-family: 'Courier New', monospace;
+    min-width: 24px;
+    text-align: right;
+}
+
+/* Sequencer grid */
+#seq-grid {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    background: #0f0f0f;
+    border: 1px solid #1a1a1a;
+    border-radius: 4px;
+    padding: 4px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+#seq-knobs {
+    display: flex;
+    gap: 4px;
+    padding-bottom: 4px;
+    min-height: 80px;
+}
+
+#seq-steps {
+    display: flex;
+    gap: 4px;
+    min-height: 40px;
+}
+
+.seq-step-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    min-width: 36px;
+    flex-shrink: 0;
+}
+
+.seq-knob {
+    width: 36px;
+    height: 60px;
+    background: #1a1a1a;
+    border: 1px solid #2a2a2a;
+    border-radius: 4px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    position: relative;
+}
+
+.seq-knob.active {
+    border-color: #3a4a3a;
+}
+
+.seq-knob-visual {
+    width: 28px;
+    height: 28px;
+    border: 2px solid #3a3a3a;
+    border-radius: 50%;
+    position: relative;
+    margin-bottom: 2px;
+}
+
+.seq-knob.active .seq-knob-visual {
+    border-color: #5a6a5a;
+}
+
+.seq-knob-indicator {
+    position: absolute;
+    width: 2px;
+    height: 10px;
+    background: #666;
+    left: 50%;
+    top: 2px;
+    transform-origin: bottom center;
+    transform: translateX(-50%);
+}
+
+.seq-knob.active .seq-knob-indicator {
+    background: #8a8;
+}
+
+.seq-knob-note {
+    font-size: 8px;
+    color: #555;
+    font-family: 'Courier New', monospace;
+}
+
+.seq-knob.active .seq-knob-note {
+    color: #8a8;
+}
+
+.seq-step-btn {
+    width: 36px;
+    height: 32px;
+    background: #1a1a1a;
+    border: 1px solid #2a2a2a;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    color: #444;
+    font-family: 'Courier New', monospace;
+}
+
+.seq-step-btn.active {
+    background: #2a3a2a;
+    border-color: #4a5a4a;
+    color: #8a8;
+}
+
+.seq-step-btn.current {
+    border-color: #6a8a6a;
+    box-shadow: 0 0 4px #4a6a4a;
+}
+
+/* Sequencer transport */
+#seq-transport {
+    flex-shrink: 0;
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    padding: 8px;
+    background: #0c0c0c;
+    border: 1px solid #1a1a1a;
+    border-radius: 4px;
+    margin-top: 4px;
+}
+
+.seq-btn {
+    width: 48px;
+    height: 36px;
+    background: #1a1a1a;
+    border: 1px solid #2a2a2a;
+    border-radius: 4px;
+    color: #666;
+    font-size: 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.seq-btn:active {
+    transform: scale(0.95);
+}
+
+.seq-btn.playing {
+    color: #6a8a6a;
+    border-color: #4a5a4a;
+}
+
 /* Play mode container */
 #play-mode {
     flex: 1;

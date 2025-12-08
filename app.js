@@ -942,9 +942,15 @@ function setupSeqControls() {
         seqTempo = parseInt(e.target.value);
         tempoValue.textContent = seqTempo;
         if (seqPlaying) {
-            // Restart with new tempo
-            stopSequencer();
-            startSequencer();
+            // Restart with new tempo (preserves current step)
+            const currentStep = seqCurrentStep;
+            clearInterval(seqIntervalId);
+            const msPerBeat = 60000 / seqTempo;
+            const msPerStep = msPerBeat / 4;
+            seqIntervalId = setInterval(() => {
+                seqCurrentStep = (seqCurrentStep + 1) % seqLength;
+                playSeqStep();
+            }, msPerStep);
         }
     });
 
@@ -965,8 +971,9 @@ function startSequencer() {
     const playBtn = document.getElementById('seq-play');
     playBtn.classList.add('playing');
 
-    // Calculate interval from BPM (ms per step)
+    // Calculate interval from BPM for 16th notes (4 steps per beat)
     const msPerBeat = 60000 / seqTempo;
+    const msPerStep = msPerBeat / 4; // 16th notes = quarter of a beat
 
     // Play first step immediately
     playSeqStep();
@@ -975,7 +982,7 @@ function startSequencer() {
     seqIntervalId = setInterval(() => {
         seqCurrentStep = (seqCurrentStep + 1) % seqLength;
         playSeqStep();
-    }, msPerBeat);
+    }, msPerStep);
 }
 
 // Stop the sequencer

@@ -461,91 +461,61 @@ function createPlayMode() {
     createKeyboard();
 }
 
-// Create 16 macro knobs
+// Create 16 macro sliders
 function createMacroGrid() {
     const macroGrid = document.getElementById('macro-grid');
     macroGrid.innerHTML = '';
 
     for (let i = 0; i < 16; i++) {
-        const knob = document.createElement('div');
-        knob.className = 'macro-knob';
-        knob.dataset.index = i;
-
-        const visual = document.createElement('div');
-        visual.className = 'knob-visual';
-
-        const indicator = document.createElement('div');
-        indicator.className = 'knob-indicator';
-        visual.appendChild(indicator);
+        const macroCell = document.createElement('div');
+        macroCell.className = 'macro-cell';
+        macroCell.dataset.index = i;
 
         const label = document.createElement('div');
-        label.className = 'knob-label';
+        label.className = 'macro-label';
         label.textContent = '---';
 
-        knob.appendChild(visual);
-        knob.appendChild(label);
+        const slider = document.createElement('input');
+        slider.type = 'range';
+        slider.className = 'macro-slider';
+        slider.min = '0';
+        slider.max = '100';
+        slider.value = '50';
+        slider.dataset.index = i;
 
-        // Pointer-based drag - immediate response, knobs work directly
-        let startY = 0;
-        let startValue = 0;
-
-        const handlePointerMove = (e) => {
-            const deltaY = startY - e.clientY;
-            const newValue = Math.max(0, Math.min(1, startValue + deltaY / 100));
-
+        slider.addEventListener('input', (e) => {
+            const value = e.target.value / 100;
             if (macroAssignments[i]) {
-                macroAssignments[i].value = newValue;
-                synth.setMacroValue(i, newValue, macroAssignments[i]);
-                updateKnobVisual(knob, newValue);
-                syncMacroKnob(i, newValue);
+                macroAssignments[i].value = value;
+                synth.setMacroValue(i, value, macroAssignments[i]);
+                syncMacroSlider(i, value);
             }
-        };
-
-        const handlePointerUp = () => {
-            knob.classList.remove('active');
-            knob.removeEventListener('pointermove', handlePointerMove);
-            knob.removeEventListener('pointerup', handlePointerUp);
-            knob.removeEventListener('pointercancel', handlePointerUp);
-        };
-
-        knob.addEventListener('pointerdown', (e) => {
-            e.preventDefault();
-            startY = e.clientY;
-            startValue = macroAssignments[i]?.value || 0.5;
-            knob.classList.add('active');
-            knob.setPointerCapture(e.pointerId);
-            knob.addEventListener('pointermove', handlePointerMove);
-            knob.addEventListener('pointerup', handlePointerUp);
-            knob.addEventListener('pointercancel', handlePointerUp);
         });
 
-        macroGrid.appendChild(knob);
+        macroCell.appendChild(label);
+        macroCell.appendChild(slider);
+
+        macroGrid.appendChild(macroCell);
     }
 }
 
-// Update knob visual rotation
-function updateKnobVisual(knob, value) {
-    const indicator = knob.querySelector('.knob-indicator');
-    // Map 0-1 to -135 to +135 degrees
-    const rotation = -135 + value * 270;
-    indicator.style.transform = `translateX(-50%) rotate(${rotation}deg)`;
-}
 
 // Update all macros based on current patch
 function updateMacros() {
     macroAssignments = synth.getMacroAssignments();
-    const knobs = document.querySelectorAll('.macro-knob');
+    const cells = document.querySelectorAll('.macro-cell');
 
-    knobs.forEach((knob, i) => {
-        const label = knob.querySelector('.knob-label');
+    cells.forEach((cell, i) => {
+        const label = cell.querySelector('.macro-label');
+        const slider = cell.querySelector('.macro-slider');
         const assignment = macroAssignments[i];
 
         if (assignment) {
             label.textContent = assignment.label;
-            updateKnobVisual(knob, assignment.value);
+            if (slider) slider.value = assignment.value * 100;
         } else {
             label.textContent = '---';
-            updateKnobVisual(knob, 0.5);
+            if (slider) slider.value = 50;
         }
     });
 }
@@ -772,7 +742,7 @@ function createSequencerUI() {
     startLfoEngine();
 }
 
-// Create 16 macro knobs for sequencer (2 rows of 8)
+// Create 16 macro sliders for sequencer (4x4 grid)
 function createSeqMacroGrid() {
     const macroGrid = document.getElementById('seq-macro-grid');
     macroGrid.innerHTML = '';
@@ -781,78 +751,51 @@ function createSeqMacroGrid() {
     macroAssignments = synth.getMacroAssignments();
 
     for (let i = 0; i < 16; i++) {
-        const knob = document.createElement('div');
-        knob.className = 'macro-knob';
-        knob.dataset.index = i;
-        knob.dataset.seqKnob = 'true';
-
-        const visual = document.createElement('div');
-        visual.className = 'knob-visual';
-
-        const indicator = document.createElement('div');
-        indicator.className = 'knob-indicator';
-        visual.appendChild(indicator);
+        const macroCell = document.createElement('div');
+        macroCell.className = 'macro-cell';
+        macroCell.dataset.index = i;
 
         const label = document.createElement('div');
-        label.className = 'knob-label';
+        label.className = 'macro-label';
 
-        // Append elements first before updating visuals
-        knob.appendChild(visual);
-        knob.appendChild(label);
+        const slider = document.createElement('input');
+        slider.type = 'range';
+        slider.className = 'macro-slider';
+        slider.min = '0';
+        slider.max = '100';
+        slider.dataset.index = i;
 
         const assignment = macroAssignments[i];
         if (assignment) {
             label.textContent = assignment.label;
-            updateKnobVisual(knob, assignment.value);
+            slider.value = assignment.value * 100;
         } else {
             label.textContent = '---';
-            updateKnobVisual(knob, 0.5);
+            slider.value = 50;
         }
 
-        // Pointer-based drag - immediate response, knobs work directly
-        let startY = 0;
-        let startValue = 0;
-
-        const handlePointerMove = (e) => {
-            const deltaY = startY - e.clientY;
-            const newValue = Math.max(0, Math.min(1, startValue + deltaY / 100));
-
+        slider.addEventListener('input', (e) => {
+            const value = e.target.value / 100;
             if (macroAssignments[i]) {
-                macroAssignments[i].value = newValue;
-                synth.setMacroValue(i, newValue, macroAssignments[i]);
-                updateKnobVisual(knob, newValue);
-                syncMacroKnob(i, newValue);
+                macroAssignments[i].value = value;
+                synth.setMacroValue(i, value, macroAssignments[i]);
+                syncMacroSlider(i, value);
             }
-        };
-
-        const handlePointerUp = () => {
-            knob.classList.remove('active');
-            knob.removeEventListener('pointermove', handlePointerMove);
-            knob.removeEventListener('pointerup', handlePointerUp);
-            knob.removeEventListener('pointercancel', handlePointerUp);
-        };
-
-        knob.addEventListener('pointerdown', (e) => {
-            e.preventDefault();
-            startY = e.clientY;
-            startValue = macroAssignments[i]?.value || 0.5;
-            knob.classList.add('active');
-            knob.setPointerCapture(e.pointerId);
-            knob.addEventListener('pointermove', handlePointerMove);
-            knob.addEventListener('pointerup', handlePointerUp);
-            knob.addEventListener('pointercancel', handlePointerUp);
         });
 
-        macroGrid.appendChild(knob);
+        macroCell.appendChild(label);
+        macroCell.appendChild(slider);
+
+        macroGrid.appendChild(macroCell);
     }
 }
 
-// Sync macro knob value between play mode and seq mode
-function syncMacroKnob(index, value) {
-    // Update all knobs with this index (both views)
-    const allKnobs = document.querySelectorAll(`.macro-knob[data-index="${index}"]`);
-    allKnobs.forEach(knob => {
-        updateKnobVisual(knob, value);
+// Sync macro slider value between play mode and seq mode
+function syncMacroSlider(index, value) {
+    // Update all sliders with this index (both views)
+    const allSliders = document.querySelectorAll(`.macro-slider[data-index="${index}"]`);
+    allSliders.forEach(slider => {
+        slider.value = value * 100;
     });
 }
 
@@ -956,7 +899,7 @@ function setSeqLength(len) {
     updateSeqGridVisibility();
 }
 
-// Create the step knobs and buttons
+// Create the step sliders and buttons
 function createSeqGrid() {
     const knobsContainer = document.getElementById('seq-knobs');
     const stepsContainer = document.getElementById('seq-steps');
@@ -965,59 +908,37 @@ function createSeqGrid() {
 
     const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
     const scale = synth.scales[selectedScale] || synth.scales.harmonic;
+    const maxNote = scale.length * 4 - 1;
 
     for (let i = 0; i < 16; i++) {
-        // Create knob column
-        const knob = document.createElement('div');
-        knob.className = 'seq-knob' + (seqSteps[i] ? ' active' : '');
-        knob.dataset.step = i;
-        if (i >= seqLength) knob.style.display = 'none';
-
-        const knobVisual = document.createElement('div');
-        knobVisual.className = 'seq-knob-visual';
-
-        const indicator = document.createElement('div');
-        indicator.className = 'seq-knob-indicator';
-        knobVisual.appendChild(indicator);
+        // Create step cell with slider
+        const stepCell = document.createElement('div');
+        stepCell.className = 'seq-step-cell' + (seqSteps[i] ? ' active' : '');
+        stepCell.dataset.step = i;
+        if (i >= seqLength) stepCell.style.display = 'none';
 
         const noteLabel = document.createElement('div');
-        noteLabel.className = 'seq-knob-note';
+        noteLabel.className = 'seq-note-label';
         noteLabel.textContent = getSeqNoteName(seqNotes[i], scale, noteNames);
 
-        knob.appendChild(knobVisual);
-        knob.appendChild(noteLabel);
+        const slider = document.createElement('input');
+        slider.type = 'range';
+        slider.className = 'seq-note-slider';
+        slider.min = '0';
+        slider.max = String(maxNote);
+        slider.value = seqNotes[i];
+        slider.orient = 'vertical';
 
-        // Pointer-based drag - immediate response, knobs work directly
-        let startY = 0;
-        let startValue = 0;
-
-        const handlePointerMove = (e) => {
-            const deltaY = startY - e.clientY;
-            const maxNote = scale.length * 4 - 1;
-            const newValue = Math.max(0, Math.min(maxNote, Math.round(startValue + deltaY / 8)));
-            seqNotes[i] = newValue;
-            updateSeqKnobVisual(knob, newValue, scale, noteNames);
-        };
-
-        const handlePointerUp = () => {
-            knob.classList.remove('active');
-            knob.removeEventListener('pointermove', handlePointerMove);
-            knob.removeEventListener('pointerup', handlePointerUp);
-            knob.removeEventListener('pointercancel', handlePointerUp);
-        };
-
-        knob.addEventListener('pointerdown', (e) => {
-            e.preventDefault();
-            startY = e.clientY;
-            startValue = seqNotes[i];
-            knob.classList.add('active');
-            knob.setPointerCapture(e.pointerId);
-            knob.addEventListener('pointermove', handlePointerMove);
-            knob.addEventListener('pointerup', handlePointerUp);
-            knob.addEventListener('pointercancel', handlePointerUp);
+        slider.addEventListener('input', (e) => {
+            const value = parseInt(e.target.value);
+            seqNotes[i] = value;
+            noteLabel.textContent = getSeqNoteName(value, scale, noteNames);
         });
 
-        knobsContainer.appendChild(knob);
+        stepCell.appendChild(noteLabel);
+        stepCell.appendChild(slider);
+
+        knobsContainer.appendChild(stepCell);
 
         // Create step button
         const stepBtn = document.createElement('button');
@@ -1026,12 +947,9 @@ function createSeqGrid() {
         stepBtn.textContent = i + 1;
         if (i >= seqLength) stepBtn.style.display = 'none';
 
-        stepBtn.addEventListener('click', () => toggleSeqStep(i));
+        stepBtn.addEventListener('click', () => toggleSeqStep(i, stepCell));
 
         stepsContainer.appendChild(stepBtn);
-
-        // Update knob visual
-        updateSeqKnobVisual(knob, seqNotes[i], scale, noteNames);
     }
 }
 
@@ -1049,36 +967,32 @@ function getSeqNoteName(noteIndex, scale, noteNames) {
     return noteNames[noteIdx] + octave;
 }
 
-// Update knob visual rotation and label
-function updateSeqKnobVisual(knob, value, scale, noteNames) {
-    const indicator = knob.querySelector('.seq-knob-indicator');
-    const noteLabel = knob.querySelector('.seq-knob-note');
-    const maxNote = scale.length * 4 - 1;
+// Update seq step slider value and label
+function updateSeqStepSlider(stepCell, value, scale, noteNames) {
+    const slider = stepCell.querySelector('.seq-note-slider');
+    const noteLabel = stepCell.querySelector('.seq-note-label');
 
-    // Map note to rotation (-135 to +135 degrees)
-    const rotation = -135 + (value / maxNote) * 270;
-    indicator.style.transform = `translateX(-50%) rotate(${rotation}deg)`;
-
-    noteLabel.textContent = getSeqNoteName(value, scale, noteNames);
+    if (slider) slider.value = value;
+    if (noteLabel) noteLabel.textContent = getSeqNoteName(value, scale, noteNames);
 }
 
 // Toggle step on/off
-function toggleSeqStep(index) {
+function toggleSeqStep(index, stepCell) {
     seqSteps[index] = !seqSteps[index];
     const stepBtn = document.querySelector(`.seq-step-btn[data-step="${index}"]`);
-    const knob = document.querySelector(`.seq-knob[data-step="${index}"]`);
+    const cell = stepCell || document.querySelector(`.seq-step-cell[data-step="${index}"]`);
 
     if (stepBtn) stepBtn.classList.toggle('active', seqSteps[index]);
-    if (knob) knob.classList.toggle('active', seqSteps[index]);
+    if (cell) cell.classList.toggle('active', seqSteps[index]);
 }
 
 // Update grid visibility based on length
 function updateSeqGridVisibility() {
-    const knobs = document.querySelectorAll('.seq-knob');
+    const stepCells = document.querySelectorAll('.seq-step-cell');
     const steps = document.querySelectorAll('.seq-step-btn');
 
-    knobs.forEach((knob, i) => {
-        knob.style.display = i < seqLength ? '' : 'none';
+    stepCells.forEach((cell, i) => {
+        cell.style.display = i < seqLength ? '' : 'none';
     });
 
     steps.forEach((step, i) => {
@@ -1259,47 +1173,24 @@ function createTransposeCell(index) {
     enableBtn.textContent = index + 1;
     enableBtn.addEventListener('click', () => toggleTransposeCell(index));
 
-    // Transpose knob (middle)
-    const knob = document.createElement('div');
-    knob.className = 'transpose-cell-knob';
-
-    const indicator = document.createElement('div');
-    indicator.className = 'transpose-cell-indicator';
-    knob.appendChild(indicator);
-
-    // Pointer-based drag - immediate response, knobs work directly
-    let startY = 0;
-    let startValue = 0;
-
-    const handlePointerMove = (e) => {
-        const deltaY = startY - e.clientY;
-        const newValue = Math.max(-12, Math.min(12, Math.round(startValue + deltaY / 6)));
-        cellData.transpose = newValue;
-        updateTransposeCellVisual(cell, cellData);
-    };
-
-    const handlePointerUp = () => {
-        knob.classList.remove('active');
-        knob.removeEventListener('pointermove', handlePointerMove);
-        knob.removeEventListener('pointerup', handlePointerUp);
-        knob.removeEventListener('pointercancel', handlePointerUp);
-    };
-
-    knob.addEventListener('pointerdown', (e) => {
-        e.preventDefault();
-        startY = e.clientY;
-        startValue = cellData.transpose;
-        knob.classList.add('active');
-        knob.setPointerCapture(e.pointerId);
-        knob.addEventListener('pointermove', handlePointerMove);
-        knob.addEventListener('pointerup', handlePointerUp);
-        knob.addEventListener('pointercancel', handlePointerUp);
-    });
-
     // Transpose value display
     const valueLabel = document.createElement('div');
     valueLabel.className = 'transpose-cell-value';
-    valueLabel.textContent = cellData.transpose > 0 ? '+' + cellData.transpose : cellData.transpose;
+    valueLabel.textContent = cellData.transpose > 0 ? '+' + cellData.transpose : String(cellData.transpose);
+
+    // Transpose slider
+    const slider = document.createElement('input');
+    slider.type = 'range';
+    slider.className = 'transpose-slider';
+    slider.min = '-12';
+    slider.max = '12';
+    slider.value = cellData.transpose;
+
+    slider.addEventListener('input', (e) => {
+        const value = parseInt(e.target.value);
+        cellData.transpose = value;
+        valueLabel.textContent = value > 0 ? '+' + value : String(value);
+    });
 
     // Cycle controls (bottom)
     const cycleContainer = document.createElement('div');
@@ -1325,28 +1216,22 @@ function createTransposeCell(index) {
 
     // Assemble cell
     cell.appendChild(enableBtn);
-    cell.appendChild(knob);
     cell.appendChild(valueLabel);
+    cell.appendChild(slider);
     cell.appendChild(cycleContainer);
-
-    // Update visual
-    updateTransposeCellVisual(cell, cellData);
 
     return cell;
 }
 
 // Update transpose cell visual
 function updateTransposeCellVisual(cell, cellData) {
-    const indicator = cell.querySelector('.transpose-cell-indicator');
+    const slider = cell.querySelector('.transpose-slider');
     const valueLabel = cell.querySelector('.transpose-cell-value');
     const cycleValue = cell.querySelector('.transpose-cycle-value');
 
-    // Map -12 to +12 to rotation (-135 to +135 degrees)
-    const rotation = (cellData.transpose / 12) * 135;
-    indicator.style.transform = `translateX(-50%) rotate(${rotation}deg)`;
-
-    valueLabel.textContent = cellData.transpose > 0 ? '+' + cellData.transpose : cellData.transpose;
-    cycleValue.textContent = cellData.cycle;
+    if (slider) slider.value = cellData.transpose;
+    if (valueLabel) valueLabel.textContent = cellData.transpose > 0 ? '+' + cellData.transpose : String(cellData.transpose);
+    if (cycleValue) cycleValue.textContent = cellData.cycle;
 }
 
 // Toggle transpose sequencer on/off

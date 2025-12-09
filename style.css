@@ -304,61 +304,83 @@ html, body {
     gap: 4px;
 }
 
-.seq-knob {
+/* Seq step cell (contains note label + vertical slider) */
+.seq-step-cell {
     width: 100%;
-    aspect-ratio: 1 / 1.4;
     background: #1a1a1a;
     border: 1px solid #2a2a2a;
     border-radius: 4px;
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    position: relative;
-    touch-action: none;
+    padding: 4px 2px;
+    gap: 4px;
 }
 
-.seq-knob.active {
+.seq-step-cell.active {
     border-color: #3a4a3a;
+    background: #1a1f1a;
 }
 
-.seq-knob-visual {
-    width: 28px;
-    height: 28px;
-    border: 2px solid #3a3a3a;
-    border-radius: 50%;
-    position: relative;
-    margin-bottom: 2px;
-}
-
-.seq-knob.active .seq-knob-visual {
-    border-color: #5a6a5a;
-}
-
-.seq-knob-indicator {
-    position: absolute;
-    width: 2px;
-    height: 10px;
-    background: #666;
-    left: 50%;
-    top: 2px;
-    transform-origin: bottom center;
-    transform: translateX(-50%);
-}
-
-.seq-knob.active .seq-knob-indicator {
-    background: #8a8;
-}
-
-.seq-knob-note {
+.seq-note-label {
     font-size: 8px;
     color: #555;
     font-family: 'Courier New', monospace;
+    text-align: center;
 }
 
-.seq-knob.active .seq-knob-note {
+.seq-step-cell.active .seq-note-label {
     color: #8a8;
+}
+
+.seq-note-slider {
+    width: 100%;
+    height: 20px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: transparent;
+    outline: none;
+    touch-action: pan-x;
+}
+
+.seq-note-slider::-webkit-slider-runnable-track {
+    height: 4px;
+    background: #2a2a2a;
+    border-radius: 2px;
+}
+
+.seq-note-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 12px;
+    height: 12px;
+    background: #4a5a4a;
+    border-radius: 50%;
+    cursor: pointer;
+    margin-top: -4px;
+}
+
+.seq-step-cell.active .seq-note-slider::-webkit-slider-thumb {
+    background: #6a8a6a;
+}
+
+.seq-note-slider::-moz-range-track {
+    height: 4px;
+    background: #2a2a2a;
+    border-radius: 2px;
+}
+
+.seq-note-slider::-moz-range-thumb {
+    width: 12px;
+    height: 12px;
+    background: #4a5a4a;
+    border-radius: 50%;
+    cursor: pointer;
+    border: none;
+}
+
+.seq-step-cell.active .seq-note-slider::-moz-range-thumb {
+    background: #6a8a6a;
 }
 
 .seq-step-btn {
@@ -528,30 +550,55 @@ html, body {
     color: #8a8;
 }
 
-.transpose-cell-knob {
-    width: 40px;
-    height: 40px;
-    background: #252525;
-    border: 1px solid #3a3a3a;
+/* Transpose slider */
+.transpose-slider {
+    width: 100%;
+    height: 24px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: transparent;
+    outline: none;
+    touch-action: pan-x;
+}
+
+.transpose-slider::-webkit-slider-runnable-track {
+    height: 4px;
+    background: #2a2a2a;
+    border-radius: 2px;
+}
+
+.transpose-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    background: #4a5a4a;
     border-radius: 50%;
-    position: relative;
     cursor: pointer;
-    touch-action: none;
+    margin-top: -5px;
 }
 
-.transpose-cell-indicator {
-    position: absolute;
-    width: 2px;
-    height: 12px;
-    background: #666;
-    left: 50%;
-    top: 6px;
-    transform-origin: bottom center;
-    transform: translateX(-50%);
+.transpose-cell.active .transpose-slider::-webkit-slider-thumb {
+    background: #6a8a6a;
 }
 
-.transpose-cell.active .transpose-cell-indicator {
-    background: #8a8;
+.transpose-slider::-moz-range-track {
+    height: 4px;
+    background: #2a2a2a;
+    border-radius: 2px;
+}
+
+.transpose-slider::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    background: #4a5a4a;
+    border-radius: 50%;
+    cursor: pointer;
+    border: none;
+}
+
+.transpose-cell.active .transpose-slider::-moz-range-thumb {
+    background: #6a8a6a;
 }
 
 .transpose-cell-value {
@@ -871,7 +918,8 @@ html, body {
     background: #0f0f0f;
 }
 
-.macro-knob {
+/* Macro cell (container for label + slider) */
+.macro-cell {
     background: #1a1a1a;
     border: 1px solid #2a2a2a;
     border-radius: 4px;
@@ -879,53 +927,62 @@ html, body {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    cursor: pointer;
-    position: relative;
-    overflow: hidden;
-    touch-action: none;
+    padding: 4px;
+    gap: 2px;
 }
 
-.macro-knob:active {
-    background: #252525;
-}
-
-.knob-visual {
-    width: 24px;
-    height: 24px;
-    border: 2px solid #3a3a3a;
-    border-radius: 50%;
-    position: relative;
-    margin-bottom: 2px;
-}
-
-.knob-indicator {
-    position: absolute;
-    width: 2px;
-    height: 8px;
-    background: #888;
-    left: 50%;
-    top: 2px;
-    transform-origin: bottom center;
-    transform: translateX(-50%);
-}
-
-.knob-label {
-    font-size: 8px;
-    color: #555;
+.macro-label {
+    font-size: 7px;
+    color: #666;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+    text-align: center;
+    width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
-.macro-knob.active .knob-visual {
-    border-color: #5a5a5a;
+.macro-slider {
+    width: 100%;
+    height: 20px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: transparent;
+    outline: none;
+    touch-action: pan-x;
 }
 
-.macro-knob.active .knob-indicator {
-    background: #aaa;
+.macro-slider::-webkit-slider-runnable-track {
+    height: 4px;
+    background: #2a2a2a;
+    border-radius: 2px;
 }
 
-.macro-knob.active .knob-label {
-    color: #777;
+.macro-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    background: #5a5a5a;
+    border-radius: 50%;
+    cursor: pointer;
+    margin-top: -5px;
+}
+
+.macro-slider::-moz-range-track {
+    height: 4px;
+    background: #2a2a2a;
+    border-radius: 2px;
+}
+
+.macro-slider::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    background: #5a5a5a;
+    border-radius: 50%;
+    cursor: pointer;
+    border: none;
 }
 
 /* Control rows container */

@@ -272,10 +272,11 @@ html, body {
 
 /* Sequencer grid */
 #seq-grid {
-    flex: 1;
+    flex: 1 1 auto;
     display: flex;
     flex-direction: column;
-    min-height: 0;
+    min-height: 80px;
+    max-height: 40%;
     background: #0f0f0f;
     border: 1px solid #1a1a1a;
     border-radius: 4px;
@@ -422,6 +423,181 @@ html, body {
 .seq-btn.playing {
     color: #6a8a6a;
     border-color: #4a5a4a;
+}
+
+/* Transpose Sequencer */
+#transpose-seq {
+    flex: 0 0 auto;
+    background: #0c0c0c;
+    border: 1px solid #1a1a1a;
+    border-radius: 4px;
+    margin-top: 4px;
+    padding: 4px;
+    min-height: 100px;
+}
+
+#transpose-seq-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 4px 8px 4px;
+    border-bottom: 1px solid #151515;
+    margin-bottom: 4px;
+}
+
+.transpose-seq-btn {
+    width: 28px;
+    height: 24px;
+    background: #1a1a1a;
+    border: 1px solid #2a2a2a;
+    border-radius: 3px;
+    color: #555;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+}
+
+.transpose-seq-btn:active {
+    transform: scale(0.95);
+}
+
+.transpose-seq-btn.active {
+    background: #2a2a1a;
+    border-color: #5a5a3a;
+    color: #aa8;
+}
+
+#transpose-seq-random.active {
+    color: #a8a;
+    border-color: #5a3a5a;
+    background: #2a1a2a;
+}
+
+#transpose-seq-cells {
+    display: flex;
+    gap: 4px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 4px 0;
+}
+
+.transpose-cell {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    min-width: 40px;
+    flex-shrink: 0;
+    background: #1a1a1a;
+    border: 1px solid #2a2a2a;
+    border-radius: 4px;
+    padding: 4px;
+}
+
+.transpose-cell.active {
+    border-color: #4a5a3a;
+    background: #1a1a12;
+}
+
+.transpose-cell.current {
+    border-color: #6a8a6a;
+    box-shadow: 0 0 4px #4a6a4a;
+}
+
+.transpose-cell-enable {
+    width: 24px;
+    height: 18px;
+    background: #252525;
+    border: 1px solid #3a3a3a;
+    border-radius: 3px;
+    color: #444;
+    font-size: 10px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.transpose-cell-enable.active {
+    background: #2a3a2a;
+    border-color: #4a5a4a;
+    color: #8a8;
+}
+
+.transpose-cell-knob {
+    width: 32px;
+    height: 32px;
+    background: #252525;
+    border: 1px solid #3a3a3a;
+    border-radius: 50%;
+    position: relative;
+    cursor: pointer;
+}
+
+.transpose-cell-indicator {
+    position: absolute;
+    width: 2px;
+    height: 10px;
+    background: #666;
+    left: 50%;
+    top: 4px;
+    transform-origin: bottom center;
+    transform: translateX(-50%);
+}
+
+.transpose-cell.active .transpose-cell-indicator {
+    background: #8a8;
+}
+
+.transpose-cell-value {
+    font-size: 9px;
+    color: #555;
+    font-family: 'Courier New', monospace;
+    text-align: center;
+}
+
+.transpose-cell.active .transpose-cell-value {
+    color: #8a8;
+}
+
+.transpose-cell-cycle {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.transpose-cycle-btn {
+    width: 16px;
+    height: 16px;
+    background: #252525;
+    border: 1px solid #3a3a3a;
+    border-radius: 2px;
+    color: #555;
+    font-size: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.transpose-cycle-btn:active {
+    background: #3a3a3a;
+}
+
+.transpose-cycle-value {
+    font-size: 9px;
+    color: #555;
+    font-family: 'Courier New', monospace;
+    min-width: 12px;
+    text-align: center;
+}
+
+.transpose-cell.active .transpose-cycle-value {
+    color: #6a8a6a;
 }
 
 /* Play mode container */

@@ -26,6 +26,17 @@ let seqPlaying = false;
 let seqCurrentStep = 0;
 let seqIntervalId = null;
 
+// Transpose sequencer state
+let transposeSeqEnabled = false; // master toggle
+let transposeSeqRandom = false; // random mode
+let transposeSeqCells = new Array(8).fill(null).map(() => ({
+    enabled: false,
+    transpose: 0, // -12 to +12 scale degrees
+    cycle: 1 // how many step seq loops before advancing
+}));
+let transposeSeqCurrentCell = 0; // current cell index (within enabled cells)
+let transposeSeqLoopCount = 0; // counts loops for cycle advancement
+
 // Cryptic cell assignments - these indices determine behavior
 // but the user should never understand the mapping
 const MELODIC_CELL = 0;   // Upper left - yearning arpeggios (Barbieri, Glass, Reich, Pärt)
@@ -742,6 +753,7 @@ function createSequencerUI() {
     createSeqGrid();
     setupSeqControls();
     setupSeqEnvelopeControls();
+    createTransposeSeqUI();
 }
 
 // Create 16 macro knobs for sequencer (2 rows of 8)
@@ -1104,12 +1116,18 @@ function setupSeqControls() {
         tempoValue.textContent = seqTempo;
         if (seqPlaying) {
             // Restart with new tempo (preserves current step)
-            const currentStep = seqCurrentStep;
             clearInterval(seqIntervalId);
             const msPerBeat = 60000 / seqTempo;
             const msPerStep = msPerBeat / 4;
             seqIntervalId = setInterval(() => {
+                const prevStep = seqCurrentStep;
                 seqCurrentStep = (seqCurrentStep + 1) % seqLength;
+
+                // Check if we've completed a loop
+                if (seqCurrentStep === 0 && prevStep === seqLength - 1) {
+                    advanceTransposeSeq();
+                }
+
                 playSeqStep();
             }, msPerStep);
         }
@@ -1129,6 +1147,11 @@ function startSequencer() {
     seqPlaying = true;
     seqCurrentStep = 0;
 
+    // Reset transpose sequencer state when starting
+    transposeSeqLoopCount = 0;
+    transposeSeqCurrentCell = 0;
+    updateTransposeSeqCurrentCell();
+
     const playBtn = document.getElementById('seq-play');
     playBtn.classList.add('playing');
 
@@ -1141,7 +1164,14 @@ function startSequencer() {
 
     // Schedule subsequent steps
     seqIntervalId = setInterval(() => {
+        const prevStep = seqCurrentStep;
         seqCurrentStep = (seqCurrentStep + 1) % seqLength;
+
+        // Check if we've completed a loop (wrapped back to start)
+        if (seqCurrentStep === 0 && prevStep === seqLength - 1) {
+            advanceTransposeSeq();
+        }
+
         playSeqStep();
     }, msPerStep);
 }
@@ -1183,7 +1213,10 @@ function playSeqStep() {
 
     // Get note index with transpose (by scale degrees)
     const scale = synth.scales[selectedScale] || synth.scales.harmonic;
-    let noteIndex = seqNotes[seqCurrentStep] + seqTranspose;
+
+    // Add transpose sequencer offset to the manual transpose
+    const transposeOffset = getCurrentTransposeOffset();
+    let noteIndex = seqNotes[seqCurrentStep] + seqTranspose + transposeOffset;
 
     // Clamp to valid range (0 to 4 octaves of scale)
     const maxNote = scale.length * 4 - 1;
@@ -1191,6 +1224,279 @@ function playSeqStep() {
 
     // Play the note using the V/Oct system
     synth.playKey(noteIndex, scale, selectedRoot, 0.01);
+}
+
+// ============== TRANSPOSE SEQUENCER ==============
+
+// Create the transpose sequencer UI
+function createTransposeSeqUI() {
+    const toggleBtn = document.getElementById('transpose-seq-toggle');
+    const randomBtn = document.getElementById('transpose-seq-random');
+    const cellsContainer = document.getElementById('transpose-seq-cells');
+
+    // Setup toggle button
+    if (toggleBtn) {
+        toggleBtn.classList.toggle('active', transposeSeqEnabled);
+        toggleBtn.textContent = transposeSeqEnabled ? '◆' : '◇';
+
+        toggleBtn.addEventListener('click', toggleTransposeSeq);
+        toggleBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            toggleTransposeSeq();
+        }, { passive: false });
+    }
+
+    // Setup random button
+    if (randomBtn) {
+        randomBtn.classList.toggle('active', transposeSeqRandom);
+
+        randomBtn.addEventListener('click', toggleTransposeSeqRandom);
+        randomBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            toggleTransposeSeqRandom();
+        }, { passive: false });
+    }
+
+    // Create 8 transpose cells
+    cellsContainer.innerHTML = '';
+
+    for (let i = 0; i < 8; i++) {
+        const cell = createTransposeCell(i);
+        cellsContainer.appendChild(cell);
+    }
+}
+
+// Create a single transpose cell
+function createTransposeCell(index) {
+    const cellData = transposeSeqCells[index];
+    const cell = document.createElement('div');
+    cell.className = 'transpose-cell' + (cellData.enabled ? ' active' : '');
+    cell.dataset.index = index;
+
+    // Enable button (top)
+    const enableBtn = document.createElement('button');
+    enableBtn.className = 'transpose-cell-enable' + (cellData.enabled ? ' active' : '');
+    enableBtn.textContent = index + 1;
+    enableBtn.addEventListener('click', () => toggleTransposeCell(index));
+    enableBtn.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        toggleTransposeCell(index);
+    }, { passive: false });
+
+    // Transpose knob (middle)
+    const knob = document.createElement('div');
+    knob.className = 'transpose-cell-knob';
+
+    const indicator = document.createElement('div');
+    indicator.className = 'transpose-cell-indicator';
+    knob.appendChild(indicator);
+
+    // Touch/drag handling for transpose knob
+    let startY = 0;
+    let startValue = 0;
+
+    const handleKnobStart = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const touch = e.touches ? e.touches[0] : e;
+        startY = touch.clientY;
+        startValue = cellData.transpose;
+        knob.classList.add('dragging');
+    };
+
+    const handleKnobMove = (e) => {
+        if (!knob.classList.contains('dragging')) return;
+        e.preventDefault();
+        const touch = e.touches ? e.touches[0] : e;
+        const deltaY = startY - touch.clientY;
+        const newValue = Math.max(-12, Math.min(12, Math.round(startValue + deltaY / 6)));
+        cellData.transpose = newValue;
+        updateTransposeCellVisual(cell, cellData);
+    };
+
+    const handleKnobEnd = () => {
+        knob.classList.remove('dragging');
+    };
+
+    knob.addEventListener('touchstart', handleKnobStart, { passive: false });
+    knob.addEventListener('touchmove', handleKnobMove, { passive: false });
+    knob.addEventListener('touchend', handleKnobEnd);
+    knob.addEventListener('mousedown', handleKnobStart);
+    document.addEventListener('mousemove', handleKnobMove);
+    document.addEventListener('mouseup', handleKnobEnd);
+
+    // Transpose value display
+    const valueLabel = document.createElement('div');
+    valueLabel.className = 'transpose-cell-value';
+    valueLabel.textContent = cellData.transpose > 0 ? '+' + cellData.transpose : cellData.transpose;
+
+    // Cycle controls (bottom)
+    const cycleContainer = document.createElement('div');
+    cycleContainer.className = 'transpose-cell-cycle';
+
+    const cycleDown = document.createElement('button');
+    cycleDown.className = 'transpose-cycle-btn';
+    cycleDown.textContent = '−';
+    cycleDown.addEventListener('click', () => adjustTransposeCycle(index, -1));
+    cycleDown.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        adjustTransposeCycle(index, -1);
+    }, { passive: false });
+
+    const cycleValue = document.createElement('span');
+    cycleValue.className = 'transpose-cycle-value';
+    cycleValue.textContent = cellData.cycle;
+
+    const cycleUp = document.createElement('button');
+    cycleUp.className = 'transpose-cycle-btn';
+    cycleUp.textContent = '+';
+    cycleUp.addEventListener('click', () => adjustTransposeCycle(index, 1));
+    cycleUp.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        adjustTransposeCycle(index, 1);
+    }, { passive: false });
+
+    cycleContainer.appendChild(cycleDown);
+    cycleContainer.appendChild(cycleValue);
+    cycleContainer.appendChild(cycleUp);
+
+    // Assemble cell
+    cell.appendChild(enableBtn);
+    cell.appendChild(knob);
+    cell.appendChild(valueLabel);
+    cell.appendChild(cycleContainer);
+
+    // Update visual
+    updateTransposeCellVisual(cell, cellData);
+
+    return cell;
+}
+
+// Update transpose cell visual
+function updateTransposeCellVisual(cell, cellData) {
+    const indicator = cell.querySelector('.transpose-cell-indicator');
+    const valueLabel = cell.querySelector('.transpose-cell-value');
+    const cycleValue = cell.querySelector('.transpose-cycle-value');
+
+    // Map -12 to +12 to rotation (-135 to +135 degrees)
+    const rotation = (cellData.transpose / 12) * 135;
+    indicator.style.transform = `translateX(-50%) rotate(${rotation}deg)`;
+
+    valueLabel.textContent = cellData.transpose > 0 ? '+' + cellData.transpose : cellData.transpose;
+    cycleValue.textContent = cellData.cycle;
+}
+
+// Toggle transpose sequencer on/off
+function toggleTransposeSeq() {
+    transposeSeqEnabled = !transposeSeqEnabled;
+    const toggleBtn = document.getElementById('transpose-seq-toggle');
+
+    if (toggleBtn) {
+        toggleBtn.classList.toggle('active', transposeSeqEnabled);
+        toggleBtn.textContent = transposeSeqEnabled ? '◆' : '◇';
+    }
+
+    // Reset state when enabling
+    if (transposeSeqEnabled) {
+        transposeSeqCurrentCell = 0;
+        transposeSeqLoopCount = 0;
+        updateTransposeSeqCurrentCell();
+    } else {
+        // Clear current highlight
+        const cells = document.querySelectorAll('.transpose-cell');
+        cells.forEach(cell => cell.classList.remove('current'));
+    }
+}
+
+// Toggle random mode
+function toggleTransposeSeqRandom() {
+    transposeSeqRandom = !transposeSeqRandom;
+    const randomBtn = document.getElementById('transpose-seq-random');
+
+    if (randomBtn) {
+        randomBtn.classList.toggle('active', transposeSeqRandom);
+    }
+}
+
+// Toggle individual transpose cell
+function toggleTransposeCell(index) {
+    const cellData = transposeSeqCells[index];
+    cellData.enabled = !cellData.enabled;
+
+    const cell = document.querySelector(`.transpose-cell[data-index="${index}"]`);
+    const enableBtn = cell?.querySelector('.transpose-cell-enable');
+
+    if (cell) cell.classList.toggle('active', cellData.enabled);
+    if (enableBtn) enableBtn.classList.toggle('active', cellData.enabled);
+}
+
+// Adjust cycle value for a cell
+function adjustTransposeCycle(index, delta) {
+    const cellData = transposeSeqCells[index];
+    cellData.cycle = Math.max(1, Math.min(16, cellData.cycle + delta));
+
+    const cell = document.querySelector(`.transpose-cell[data-index="${index}"]`);
+    if (cell) {
+        updateTransposeCellVisual(cell, cellData);
+    }
+}
+
+// Get enabled transpose cells
+function getEnabledTransposeCells() {
+    return transposeSeqCells
+        .map((cell, index) => ({ ...cell, index }))
+        .filter(cell => cell.enabled);
+}
+
+// Update current cell highlight
+function updateTransposeSeqCurrentCell() {
+    const cells = document.querySelectorAll('.transpose-cell');
+    const enabledCells = getEnabledTransposeCells();
+
+    cells.forEach((cell, i) => {
+        const isCurrentEnabled = enabledCells.length > 0 &&
+            enabledCells[transposeSeqCurrentCell % enabledCells.length]?.index === i;
+        cell.classList.toggle('current', transposeSeqEnabled && isCurrentEnabled);
+    });
+}
+
+// Get current transpose value from transpose sequencer
+function getCurrentTransposeOffset() {
+    if (!transposeSeqEnabled) return 0;
+
+    const enabledCells = getEnabledTransposeCells();
+    if (enabledCells.length === 0) return 0;
+
+    const currentCellIndex = transposeSeqCurrentCell % enabledCells.length;
+    return enabledCells[currentCellIndex].transpose;
+}
+
+// Advance transpose sequencer (called when step seq completes a loop)
+function advanceTransposeSeq() {
+    if (!transposeSeqEnabled) return;
+
+    const enabledCells = getEnabledTransposeCells();
+    if (enabledCells.length === 0) return;
+
+    const currentCellIndex = transposeSeqCurrentCell % enabledCells.length;
+    const currentCell = enabledCells[currentCellIndex];
+
+    transposeSeqLoopCount++;
+
+    // Check if we've completed enough loops for this cell
+    if (transposeSeqLoopCount >= currentCell.cycle) {
+        transposeSeqLoopCount = 0;
+
+        if (transposeSeqRandom) {
+            // Random mode: pick any enabled cell (could be same)
+            transposeSeqCurrentCell = Math.floor(Math.random() * enabledCells.length);
+        } else {
+            // Sequential mode: advance to next enabled cell
+            transposeSeqCurrentCell = (currentCellIndex + 1) % enabledCells.length;
+        }
+
+        updateTransposeSeqCurrentCell();
+    }
 }
 
 // Initialize when DOM is ready

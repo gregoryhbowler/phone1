@@ -100,6 +100,8 @@ html, body {
     min-height: 0;
     background: #0a0a0a;
     padding: 4px;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
 }
 
 #seq-mode.hidden {
@@ -119,9 +121,8 @@ html, body {
     gap: 3px;
     padding: 4px;
     flex: 0 0 auto;
-    height: 20%;
+    height: 80px;
     min-height: 60px;
-    max-height: 100px;
     background: #0f0f0f;
     margin-bottom: 4px;
     border-radius: 4px;
@@ -272,11 +273,11 @@ html, body {
 
 /* Sequencer grid */
 #seq-grid {
-    flex: 1 1 auto;
+    flex: 0 0 auto;
     display: flex;
     flex-direction: column;
-    min-height: 80px;
-    max-height: 40%;
+    min-height: 100px;
+    max-height: 140px;
     background: #0f0f0f;
     border: 1px solid #1a1a1a;
     border-radius: 4px;

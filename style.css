@@ -314,6 +314,7 @@ html, body {
     justify-content: center;
     cursor: pointer;
     position: relative;
+    touch-action: pan-y;
 }
 
 .seq-knob.active {
@@ -529,6 +530,7 @@ html, body {
     border-radius: 50%;
     position: relative;
     cursor: pointer;
+    touch-action: pan-y;
 }
 
 .transpose-cell-indicator {
@@ -629,6 +631,7 @@ html, body {
     border: 1px solid #2a2a2a;
     border-radius: 4px;
     padding: 8px;
+    touch-action: pan-y;
 }
 
 .lfo-cell.active {
@@ -868,6 +871,7 @@ html, body {
     cursor: pointer;
     position: relative;
     overflow: hidden;
+    touch-action: pan-y;
 }
 
 .macro-knob:active {

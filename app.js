@@ -482,25 +482,36 @@ function createMacroGrid() {
 
         // Touch/drag handling for knob
         let startY = 0;
+        let startX = 0;
         let startValue = 0;
+        let touchActive = false;
         let isDragging = false;
 
         const handleStart = (e) => {
             const touch = e.touches ? e.touches[0] : e;
             startY = touch.clientY;
+            startX = touch.clientX;
             startValue = macroAssignments[i]?.value || 0.5;
+            touchActive = true;
             isDragging = false;
-            knob.classList.add('active');
         };
 
         const handleMove = (e) => {
-            if (!knob.classList.contains('active')) return;
+            if (!touchActive) return;
             const touch = e.touches ? e.touches[0] : e;
             const deltaY = startY - touch.clientY;
+            const deltaX = Math.abs(touch.clientX - startX);
 
-            // Only start dragging after threshold to allow scroll
-            if (!isDragging && Math.abs(deltaY) < 10) return;
+            // If horizontal movement > vertical, let scroll happen
+            if (!isDragging && deltaX > Math.abs(deltaY)) {
+                touchActive = false;
+                return;
+            }
+
+            // Only start dragging after vertical threshold
+            if (!isDragging && Math.abs(deltaY) < 15) return;
             isDragging = true;
+            knob.classList.add('active');
             e.preventDefault();
 
             const newValue = Math.max(0, Math.min(1, startValue + deltaY / 100));
@@ -516,6 +527,7 @@ function createMacroGrid() {
 
         const handleEnd = () => {
             knob.classList.remove('active');
+            touchActive = false;
             isDragging = false;
         };
 
@@ -818,25 +830,36 @@ function createSeqMacroGrid() {
 
         // Touch/drag handling for knob
         let startY = 0;
+        let startX = 0;
         let startValue = 0;
+        let touchActive = false;
         let isDragging = false;
 
         const handleStart = (e) => {
             const touch = e.touches ? e.touches[0] : e;
             startY = touch.clientY;
+            startX = touch.clientX;
             startValue = macroAssignments[i]?.value || 0.5;
+            touchActive = true;
             isDragging = false;
-            knob.classList.add('active');
         };
 
         const handleMove = (e) => {
-            if (!knob.classList.contains('active')) return;
+            if (!touchActive) return;
             const touch = e.touches ? e.touches[0] : e;
             const deltaY = startY - touch.clientY;
+            const deltaX = Math.abs(touch.clientX - startX);
 
-            // Only start dragging after threshold to allow scroll
-            if (!isDragging && Math.abs(deltaY) < 10) return;
+            // If horizontal movement > vertical, let scroll happen
+            if (!isDragging && deltaX > Math.abs(deltaY)) {
+                touchActive = false;
+                return;
+            }
+
+            // Only start dragging after vertical threshold
+            if (!isDragging && Math.abs(deltaY) < 15) return;
             isDragging = true;
+            knob.classList.add('active');
             e.preventDefault();
 
             const newValue = Math.max(0, Math.min(1, startValue + deltaY / 100));
@@ -852,6 +875,7 @@ function createSeqMacroGrid() {
 
         const handleEnd = () => {
             knob.classList.remove('active');
+            touchActive = false;
             isDragging = false;
         };
 
@@ -1008,25 +1032,36 @@ function createSeqGrid() {
 
         // Touch/drag handling for note knob
         let startY = 0;
+        let startX = 0;
         let startValue = 0;
+        let touchActive = false;
         let isDragging = false;
 
         const handleKnobStart = (e) => {
             const touch = e.touches ? e.touches[0] : e;
             startY = touch.clientY;
+            startX = touch.clientX;
             startValue = seqNotes[i];
+            touchActive = true;
             isDragging = false;
-            knob.classList.add('dragging');
         };
 
         const handleKnobMove = (e) => {
-            if (!knob.classList.contains('dragging')) return;
+            if (!touchActive) return;
             const touch = e.touches ? e.touches[0] : e;
             const deltaY = startY - touch.clientY;
+            const deltaX = Math.abs(touch.clientX - startX);
 
-            // Only start dragging after threshold to allow scroll
-            if (!isDragging && Math.abs(deltaY) < 10) return;
+            // If horizontal movement > vertical, let scroll happen
+            if (!isDragging && deltaX > Math.abs(deltaY)) {
+                touchActive = false;
+                return;
+            }
+
+            // Only start dragging after vertical threshold
+            if (!isDragging && Math.abs(deltaY) < 15) return;
             isDragging = true;
+            knob.classList.add('dragging');
             e.preventDefault();
 
             // 4 octaves * scale length = total notes
@@ -1038,6 +1073,7 @@ function createSeqGrid() {
 
         const handleKnobEnd = () => {
             knob.classList.remove('dragging');
+            touchActive = false;
             isDragging = false;
         };
 
@@ -1308,25 +1344,36 @@ function createTransposeCell(index) {
 
     // Touch/drag handling for transpose knob
     let startY = 0;
+    let startX = 0;
     let startValue = 0;
+    let touchActive = false;
     let isDragging = false;
 
     const handleKnobStart = (e) => {
         const touch = e.touches ? e.touches[0] : e;
         startY = touch.clientY;
+        startX = touch.clientX;
         startValue = cellData.transpose;
+        touchActive = true;
         isDragging = false;
-        knob.classList.add('dragging');
     };
 
     const handleKnobMove = (e) => {
-        if (!knob.classList.contains('dragging')) return;
+        if (!touchActive) return;
         const touch = e.touches ? e.touches[0] : e;
         const deltaY = startY - touch.clientY;
+        const deltaX = Math.abs(touch.clientX - startX);
 
-        // Only start dragging after threshold to allow scroll
-        if (!isDragging && Math.abs(deltaY) < 10) return;
+        // If horizontal movement > vertical, let scroll happen
+        if (!isDragging && deltaX > Math.abs(deltaY)) {
+            touchActive = false;
+            return;
+        }
+
+        // Only start dragging after vertical threshold
+        if (!isDragging && Math.abs(deltaY) < 15) return;
         isDragging = true;
+        knob.classList.add('dragging');
         e.preventDefault();
 
         const newValue = Math.max(-12, Math.min(12, Math.round(startValue + deltaY / 6)));
@@ -1336,6 +1383,7 @@ function createTransposeCell(index) {
 
     const handleKnobEnd = () => {
         knob.classList.remove('dragging');
+        touchActive = false;
         isDragging = false;
     };
 

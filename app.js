@@ -480,63 +480,40 @@ function createMacroGrid() {
         knob.appendChild(visual);
         knob.appendChild(label);
 
-        // Touch/drag handling for knob
+        // Pointer-based drag handling (works with touch-action CSS)
         let startY = 0;
-        let startX = 0;
         let startValue = 0;
-        let touchActive = false;
-        let isDragging = false;
 
-        const handleStart = (e) => {
-            const touch = e.touches ? e.touches[0] : e;
-            startY = touch.clientY;
-            startX = touch.clientX;
-            startValue = macroAssignments[i]?.value || 0.5;
-            touchActive = true;
-            isDragging = false;
-        };
-
-        const handleMove = (e) => {
-            if (!touchActive) return;
-            const touch = e.touches ? e.touches[0] : e;
-            const deltaY = startY - touch.clientY;
-            const deltaX = Math.abs(touch.clientX - startX);
-
-            // If horizontal movement > vertical, let scroll happen
-            if (!isDragging && deltaX > Math.abs(deltaY)) {
-                touchActive = false;
-                return;
-            }
-
-            // Only start dragging after vertical threshold
-            if (!isDragging && Math.abs(deltaY) < 15) return;
-            isDragging = true;
-            knob.classList.add('active');
-            e.preventDefault();
-
+        const handlePointerMove = (e) => {
+            const deltaY = startY - e.clientY;
             const newValue = Math.max(0, Math.min(1, startValue + deltaY / 100));
 
             if (macroAssignments[i]) {
                 macroAssignments[i].value = newValue;
                 synth.setMacroValue(i, newValue, macroAssignments[i]);
                 updateKnobVisual(knob, newValue);
-                // Also update seq mode knob if exists
                 syncMacroKnob(i, newValue);
             }
         };
 
-        const handleEnd = () => {
+        const handlePointerUp = () => {
             knob.classList.remove('active');
-            touchActive = false;
-            isDragging = false;
+            knob.releasePointerCapture(knob.pointerId);
+            knob.removeEventListener('pointermove', handlePointerMove);
+            knob.removeEventListener('pointerup', handlePointerUp);
+            knob.removeEventListener('pointercancel', handlePointerUp);
         };
 
-        knob.addEventListener('touchstart', handleStart, { passive: true });
-        knob.addEventListener('touchmove', handleMove, { passive: false });
-        knob.addEventListener('touchend', handleEnd);
-        knob.addEventListener('mousedown', handleStart);
-        document.addEventListener('mousemove', handleMove);
-        document.addEventListener('mouseup', handleEnd);
+        knob.addEventListener('pointerdown', (e) => {
+            startY = e.clientY;
+            startValue = macroAssignments[i]?.value || 0.5;
+            knob.classList.add('active');
+            knob.pointerId = e.pointerId;
+            knob.setPointerCapture(e.pointerId);
+            knob.addEventListener('pointermove', handlePointerMove);
+            knob.addEventListener('pointerup', handlePointerUp);
+            knob.addEventListener('pointercancel', handlePointerUp);
+        });
 
         macroGrid.appendChild(knob);
     }
@@ -828,63 +805,40 @@ function createSeqMacroGrid() {
             updateKnobVisual(knob, 0.5);
         }
 
-        // Touch/drag handling for knob
+        // Pointer-based drag handling (works with touch-action CSS)
         let startY = 0;
-        let startX = 0;
         let startValue = 0;
-        let touchActive = false;
-        let isDragging = false;
 
-        const handleStart = (e) => {
-            const touch = e.touches ? e.touches[0] : e;
-            startY = touch.clientY;
-            startX = touch.clientX;
-            startValue = macroAssignments[i]?.value || 0.5;
-            touchActive = true;
-            isDragging = false;
-        };
-
-        const handleMove = (e) => {
-            if (!touchActive) return;
-            const touch = e.touches ? e.touches[0] : e;
-            const deltaY = startY - touch.clientY;
-            const deltaX = Math.abs(touch.clientX - startX);
-
-            // If horizontal movement > vertical, let scroll happen
-            if (!isDragging && deltaX > Math.abs(deltaY)) {
-                touchActive = false;
-                return;
-            }
-
-            // Only start dragging after vertical threshold
-            if (!isDragging && Math.abs(deltaY) < 15) return;
-            isDragging = true;
-            knob.classList.add('active');
-            e.preventDefault();
-
+        const handlePointerMove = (e) => {
+            const deltaY = startY - e.clientY;
             const newValue = Math.max(0, Math.min(1, startValue + deltaY / 100));
 
             if (macroAssignments[i]) {
                 macroAssignments[i].value = newValue;
                 synth.setMacroValue(i, newValue, macroAssignments[i]);
                 updateKnobVisual(knob, newValue);
-                // Also update play mode knob if exists
                 syncMacroKnob(i, newValue);
             }
         };
 
-        const handleEnd = () => {
+        const handlePointerUp = () => {
             knob.classList.remove('active');
-            touchActive = false;
-            isDragging = false;
+            knob.releasePointerCapture(knob.pointerId);
+            knob.removeEventListener('pointermove', handlePointerMove);
+            knob.removeEventListener('pointerup', handlePointerUp);
+            knob.removeEventListener('pointercancel', handlePointerUp);
         };
 
-        knob.addEventListener('touchstart', handleStart, { passive: true });
-        knob.addEventListener('touchmove', handleMove, { passive: false });
-        knob.addEventListener('touchend', handleEnd);
-        knob.addEventListener('mousedown', handleStart);
-        document.addEventListener('mousemove', handleMove);
-        document.addEventListener('mouseup', handleEnd);
+        knob.addEventListener('pointerdown', (e) => {
+            startY = e.clientY;
+            startValue = macroAssignments[i]?.value || 0.5;
+            knob.classList.add('active');
+            knob.pointerId = e.pointerId;
+            knob.setPointerCapture(e.pointerId);
+            knob.addEventListener('pointermove', handlePointerMove);
+            knob.addEventListener('pointerup', handlePointerUp);
+            knob.addEventListener('pointercancel', handlePointerUp);
+        });
 
         macroGrid.appendChild(knob);
     }
@@ -1030,59 +984,36 @@ function createSeqGrid() {
         knob.appendChild(knobVisual);
         knob.appendChild(noteLabel);
 
-        // Touch/drag handling for note knob
+        // Pointer-based drag handling (works with touch-action CSS)
         let startY = 0;
-        let startX = 0;
         let startValue = 0;
-        let touchActive = false;
-        let isDragging = false;
 
-        const handleKnobStart = (e) => {
-            const touch = e.touches ? e.touches[0] : e;
-            startY = touch.clientY;
-            startX = touch.clientX;
-            startValue = seqNotes[i];
-            touchActive = true;
-            isDragging = false;
-        };
-
-        const handleKnobMove = (e) => {
-            if (!touchActive) return;
-            const touch = e.touches ? e.touches[0] : e;
-            const deltaY = startY - touch.clientY;
-            const deltaX = Math.abs(touch.clientX - startX);
-
-            // If horizontal movement > vertical, let scroll happen
-            if (!isDragging && deltaX > Math.abs(deltaY)) {
-                touchActive = false;
-                return;
-            }
-
-            // Only start dragging after vertical threshold
-            if (!isDragging && Math.abs(deltaY) < 15) return;
-            isDragging = true;
-            knob.classList.add('dragging');
-            e.preventDefault();
-
-            // 4 octaves * scale length = total notes
+        const handlePointerMove = (e) => {
+            const deltaY = startY - e.clientY;
             const maxNote = scale.length * 4 - 1;
             const newValue = Math.max(0, Math.min(maxNote, Math.round(startValue + deltaY / 8)));
             seqNotes[i] = newValue;
             updateSeqKnobVisual(knob, newValue, scale, noteNames);
         };
 
-        const handleKnobEnd = () => {
+        const handlePointerUp = () => {
             knob.classList.remove('dragging');
-            touchActive = false;
-            isDragging = false;
+            knob.releasePointerCapture(knob.pointerId);
+            knob.removeEventListener('pointermove', handlePointerMove);
+            knob.removeEventListener('pointerup', handlePointerUp);
+            knob.removeEventListener('pointercancel', handlePointerUp);
         };
 
-        knob.addEventListener('touchstart', handleKnobStart, { passive: true });
-        knob.addEventListener('touchmove', handleKnobMove, { passive: false });
-        knob.addEventListener('touchend', handleKnobEnd);
-        knob.addEventListener('mousedown', handleKnobStart);
-        document.addEventListener('mousemove', handleKnobMove);
-        document.addEventListener('mouseup', handleKnobEnd);
+        knob.addEventListener('pointerdown', (e) => {
+            startY = e.clientY;
+            startValue = seqNotes[i];
+            knob.classList.add('dragging');
+            knob.pointerId = e.pointerId;
+            knob.setPointerCapture(e.pointerId);
+            knob.addEventListener('pointermove', handlePointerMove);
+            knob.addEventListener('pointerup', handlePointerUp);
+            knob.addEventListener('pointercancel', handlePointerUp);
+        });
 
         knobsContainer.appendChild(knob);
 
@@ -1342,57 +1273,35 @@ function createTransposeCell(index) {
     indicator.className = 'transpose-cell-indicator';
     knob.appendChild(indicator);
 
-    // Touch/drag handling for transpose knob
+    // Pointer-based drag handling (works with touch-action CSS)
     let startY = 0;
-    let startX = 0;
     let startValue = 0;
-    let touchActive = false;
-    let isDragging = false;
 
-    const handleKnobStart = (e) => {
-        const touch = e.touches ? e.touches[0] : e;
-        startY = touch.clientY;
-        startX = touch.clientX;
-        startValue = cellData.transpose;
-        touchActive = true;
-        isDragging = false;
-    };
-
-    const handleKnobMove = (e) => {
-        if (!touchActive) return;
-        const touch = e.touches ? e.touches[0] : e;
-        const deltaY = startY - touch.clientY;
-        const deltaX = Math.abs(touch.clientX - startX);
-
-        // If horizontal movement > vertical, let scroll happen
-        if (!isDragging && deltaX > Math.abs(deltaY)) {
-            touchActive = false;
-            return;
-        }
-
-        // Only start dragging after vertical threshold
-        if (!isDragging && Math.abs(deltaY) < 15) return;
-        isDragging = true;
-        knob.classList.add('dragging');
-        e.preventDefault();
-
+    const handlePointerMove = (e) => {
+        const deltaY = startY - e.clientY;
         const newValue = Math.max(-12, Math.min(12, Math.round(startValue + deltaY / 6)));
         cellData.transpose = newValue;
         updateTransposeCellVisual(cell, cellData);
     };
 
-    const handleKnobEnd = () => {
+    const handlePointerUp = () => {
         knob.classList.remove('dragging');
-        touchActive = false;
-        isDragging = false;
+        knob.releasePointerCapture(knob.pointerId);
+        knob.removeEventListener('pointermove', handlePointerMove);
+        knob.removeEventListener('pointerup', handlePointerUp);
+        knob.removeEventListener('pointercancel', handlePointerUp);
     };
 
-    knob.addEventListener('touchstart', handleKnobStart, { passive: true });
-    knob.addEventListener('touchmove', handleKnobMove, { passive: false });
-    knob.addEventListener('touchend', handleKnobEnd);
-    knob.addEventListener('mousedown', handleKnobStart);
-    document.addEventListener('mousemove', handleKnobMove);
-    document.addEventListener('mouseup', handleKnobEnd);
+    knob.addEventListener('pointerdown', (e) => {
+        startY = e.clientY;
+        startValue = cellData.transpose;
+        knob.classList.add('dragging');
+        knob.pointerId = e.pointerId;
+        knob.setPointerCapture(e.pointerId);
+        knob.addEventListener('pointermove', handlePointerMove);
+        knob.addEventListener('pointerup', handlePointerUp);
+        knob.addEventListener('pointercancel', handlePointerUp);
+    });
 
     // Transpose value display
     const valueLabel = document.createElement('div');

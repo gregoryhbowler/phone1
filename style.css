@@ -103,6 +103,7 @@ html, body {
     overflow-x: hidden;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
 }
 
 #seq-mode.hidden {
@@ -599,6 +600,7 @@ html, body {
     border: 1px solid #1a1a1a;
     border-radius: 4px;
     margin-top: 4px;
+    margin-bottom: 20px;
     padding: 4px;
 }
 
@@ -613,8 +615,8 @@ html, body {
 
 #lfo-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    grid-template-rows: repeat(2, auto);
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: repeat(3, auto);
     gap: 6px;
     padding: 4px 0;
 }
